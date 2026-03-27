@@ -1,0 +1,69 @@
+# ============================================================
+# BBB Baseline Pipeline - Conda Environment
+# ============================================================
+# Installation:
+#   conda env create -f configs/environment-baseline.yml
+#   conda activate bbb-baseline
+#
+# Update existing environment:
+#   conda env update -f configs/environment-baseline.yml --prune
+# ============================================================
+#
+# This environment contains ONLY the dependencies required for
+# the working baseline pipeline (RF, XGB, LGBM models with B3DB).
+#
+# Use this for:
+#   - Local baseline development
+#   - CFFF baseline execution
+#   - Reproducing baseline benchmark results
+#
+# For research modules, use configs/environment-research.yml instead.
+# ============================================================
+
+name: bbb-baseline
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  # Python
+  - python=3.10
+
+  # Core scientific computing
+  - numpy>=1.24.0
+  - pandas>=2.0.0
+  - scipy>=1.10.0
+  - scikit-learn>=1.3.0
+
+  # Machine learning models (baseline)
+  - xgboost>=2.0.0
+  - lightgbm>=4.0.0
+
+  # Molecular computation
+  - rdkit>=2023.3.0
+
+  # Utilities
+  - joblib>=1.3.0
+  - tqdm>=4.66.0
+
+  # Visualization
+  - matplotlib>=3.8.0
+  - seaborn>=0.13.0
+
+# ============================================================
+# EXCLUDED FROM BASELINE
+# ============================================================
+#
+# The following are NOT included in baseline environment:
+#
+# Deep learning frameworks (for GNN, VAE, GAN):
+#   - pytorch
+#   - torchvision
+#   - pytorch-geometric
+#
+# Web framework (for Streamlit app):
+#   - streamlit
+#
+# These are available in configs/environment-research.yml
+# ============================================================

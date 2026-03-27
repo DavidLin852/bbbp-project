@@ -1,0 +1,68 @@
+# ============================================================
+# BBB Baseline Pipeline - Core Dependencies
+# ============================================================
+# Installation:
+#   pip install -r requirements-baseline.txt
+#
+# Or with conda:
+#   conda env create -f configs/environment-baseline.yml
+# ============================================================
+#
+# This file contains ONLY the dependencies required for the
+# working baseline pipeline (RF, XGB, LGBM models with B3DB dataset).
+#
+# Use this for:
+#   - Local baseline development
+#   - CFFF baseline execution
+#   - Reproducing baseline benchmark results
+#
+# For research modules (VAE, GAN, Transformer), use:
+#   - requirements-research.txt
+#   - or requirements.txt (includes everything)
+# ============================================================
+
+# Core Python dependencies
+# =======================
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+scikit-learn>=1.3.0
+
+# Machine learning models (baseline)
+# ================================
+xgboost>=2.0.0
+lightgbm>=4.0.0
+
+# Molecular computation (required)
+# ================================
+rdkit>=2023.3.0
+
+# Utilities (required)
+# ==================
+joblib>=1.3.0
+tqdm>=4.66.0
+
+# Visualization (optional but recommended)
+# =========================
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# ============================================================
+# EXCLUDED FROM BASELINE (not needed for core workflow)
+# ============================================================
+#
+# The following are NOT included in baseline requirements:
+#
+# Deep learning frameworks (for GNN, VAE, GAN models):
+#   - torch
+#   - torch-geometric
+#   - torch-scatter
+#   - torch-sparse
+#   - torchvision
+#
+# Web framework (for Streamlit app):
+#   - streamlit
+#   - plotly
+#
+# These are available in requirements-research.txt if needed.
+# ============================================================

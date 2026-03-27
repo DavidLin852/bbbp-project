@@ -1,0 +1,95 @@
+# ============================================================
+# BBB Research Modules - Conda Environment
+# ============================================================
+# Installation:
+#   conda env create -f configs/environment-research.yml
+#   conda activate bbb-research
+#
+# Update existing environment:
+#   conda env update -f configs/environment-research.yml --prune
+# ============================================================
+#
+# This environment contains dependencies for experimental and
+# research features that are NOT part of the working baseline.
+#
+# Use this for:
+#   - VAE/GAN molecule generation
+#   - Transformer models (MolBERT, Graphormer)
+#   - GNN models (GAT, GCN)
+#   - Streamlit web interface
+#   - Advanced visualizations
+#
+# WARNING: This environment is much larger and may require CUDA
+# for GPU support with PyTorch.
+#
+# Prerequisites:
+#   Ensure baseline dependencies are installed first:
+#   conda env create -f configs/environment-baseline.yml
+# ============================================================
+
+name: bbb-research
+
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+
+dependencies:
+  # Python
+  - python=3.10
+
+  # Core scientific computing (from baseline)
+  - numpy>=1.24.0
+  - pandas>=2.0.0
+  - scipy>=1.10.0
+  - scikit-learn>=1.3.0
+
+  # Machine learning models (from baseline)
+  - xgboost>=2.0.0
+  - lightgbm>=4.0.0
+
+  # Molecular computation (from baseline)
+  - rdkit>=2023.3.0
+
+  # Utilities (from baseline)
+  - joblib>=1.3.0
+  - tqdm>=4.66.0
+
+  # Visualization (from baseline)
+  - matplotlib>=3.8.0
+  - seaborn>=0.13.0
+
+  # Deep learning frameworks (research only)
+  - pytorch>=2.0.0
+  - torchvision>=0.15.0
+  - pytorch::pytorch-geometric
+  - pytorch::pytorch-scatter
+  - pytorch::pytorch-sparse
+
+  # Web framework (research only)
+  - pip>=23.0
+  - pip:
+      - streamlit>=1.29.0
+      - plotly>=5.18.0
+
+# ============================================================
+# INSTALLATION NOTES
+# ============================================================
+#
+# PyTorch installation:
+#   The pytorch channel provides pre-built packages with CUDA support.
+#   For CPU-only, add: cpuonly to the dependencies list above.
+#
+# PyTorch Geometric:
+#   Installing via conda from pytorch channel is recommended.
+#   Ensure PyTorch and PyG versions are compatible.
+#
+# ============================================================
+# BASELINE DEPENDENCIES
+# ============================================================
+#
+# This environment includes all baseline dependencies PLUS research
+# dependencies. If you only need baseline, use:
+#   configs/environment-baseline.yml
+#
+# ============================================================

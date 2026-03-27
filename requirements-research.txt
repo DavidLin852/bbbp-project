@@ -1,0 +1,65 @@
+# ============================================================
+# BBB Research Modules - Optional Dependencies
+# ============================================================
+# Installation:
+#   pip install -r requirements-research.txt
+#
+# Or install everything at once:
+#   pip install -r requirements-baseline.txt
+#   pip install -r requirements-research.txt
+# ============================================================
+#
+# This file contains dependencies for experimental and research
+# features that are NOT part of the working baseline pipeline.
+#
+# Use this for:
+#   - VAE/GAN molecule generation
+#   - Transformer models (MolBERT, Graphormer)
+#   - GNN models (GAT, GCN)
+#   - Streamlit web interface
+#   - Advanced visualizations
+#
+# WARNING: These dependencies are large and may require additional
+# system-level setup (e.g., CUDA for PyTorch).
+# ============================================================
+
+# Deep learning frameworks (for GNN, VAE, GAN models)
+# ================================
+torch>=2.0.0
+torchvision>=0.15.0
+torch-geometric>=2.4.0
+torch-scatter>=2.1.0
+torch-sparse>=0.6.0
+
+# Web framework (for Streamlit app)
+# ================================
+streamlit>=1.29.0
+plotly>=5.18.0
+
+# ============================================================
+# INSTALLATION NOTES
+# ============================================================
+#
+# PyTorch installation:
+#   For CPU-only: pip install torch torchvision
+#   For CUDA 11.8: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#   For CUDA 12.1: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#
+# PyTorch Geometric installation:
+#   Must match PyTorch version. See:
+#   https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html
+#
+# Example for PyTorch 2.1.2 + CUDA 11.8:
+#   pip install torch-geometric
+#   pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.1.2+cu118.html
+#
+# ============================================================
+# BASELINE DEPENDENCIES
+# ============================================================
+#
+# Before installing research dependencies, ensure baseline
+# dependencies are installed:
+#
+#   pip install -r requirements-baseline.txt
+#
+# ============================================================

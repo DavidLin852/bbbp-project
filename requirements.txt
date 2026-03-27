@@ -1,47 +1,53 @@
 # ============================================================
 # BBB Permeability Prediction Platform - Python Dependencies
 # ============================================================
-# 安装: pip install -r requirements.txt
+#
+# RECOMMENDED: Use split dependency files for cleaner setup
 # ============================================================
-
-# 核心依赖
-# =========
-streamlit==1.29.0
-pandas==2.1.4
-numpy==1.26.3
-scipy==1.11.4
-scikit-learn==1.3.2
-
-# 机器学习模型
-# =========
-xgboost==2.0.3
-lightgbm==4.1.0
-
-# 可视化
-# =========
-matplotlib==3.8.2
-seaborn==0.13.1
-plotly==5.18.0
-
-# 分子计算
-# =========
-rdkit==2023.9.1
-
-# 深度学习
-# =========
-torch==2.1.2
-torchvision==0.16.2
-torch-geometric==2.4.0
-torch-scatter==2.1.1
-torch-sparse==0.6.17
-
-# 工具
-# =========
-joblib==1.3.2
-tqdm==4.66.1
-
-# Web框架 (可选，用于API服务)
-# =========
-# fastapi==0.108.0
-# uvicorn==0.25.0
-# pydantic==2.5.2
+#
+# For baseline pipeline (RF, XGB, LGBM models):
+#   pip install -r requirements-baseline.txt
+#   conda env create -f configs/environment-baseline.yml
+#
+# For research modules (VAE, GAN, GNN, Streamlit):
+#   pip install -r requirements-baseline.txt
+#   pip install -r requirements-research.txt
+#   conda env create -f configs/environment-research.yml
+#
+# ============================================================
+# LEGACY: All dependencies in one file (backward compatibility)
+# ============================================================
+#
+# If you prefer to install everything at once, you can use:
+#   pip install -r requirements-legacy.txt
+#
+# Note: This includes deep learning frameworks (PyTorch, PyG) which
+# are large and not needed for the baseline pipeline.
+#
+# ============================================================
+# QUICK START
+# ============================================================
+#
+# For baseline work (RECOMMENDED):
+#   1. conda env create -f configs/environment-baseline.yml
+#   2. conda activate bbb-baseline
+#   3. python scripts/baseline/01_preprocess_b3db.py --seed 0
+#
+# For research work:
+#   1. conda env create -f configs/environment-research.yml
+#   2. conda activate bbb-research
+#   3. python src/vae/train_vae.py  # (example)
+#
+# ============================================================
+# DEPENDENCY FILES
+# ============================================================
+#
+# requirements-baseline.txt       - Core baseline dependencies only
+# requirements-research.txt       - Research modules (VAE, GAN, GNN, etc.)
+# requirements-legacy.txt         - All dependencies (backward compatibility)
+#
+# configs/environment-baseline.yml    - Conda environment for baseline
+# configs/environment-research.yml    - Conda environment for research
+# configs/environment.yml              - Original conda environment (all deps)
+#
+# ============================================================
