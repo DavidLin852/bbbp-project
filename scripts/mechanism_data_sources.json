@@ -1,0 +1,64 @@
+{
+  "data_sources": {
+    "efflux": {
+      "description": "ABC转运体外排数据",
+      "targets": [
+        {"chembl_id": "CHEMBL240", "name": "ABCB1", "description": "P-glycoprotein"},
+        {"chembl_id": "CHEMBL241", "name": "ABCG2", "description": "BCRP"},
+        {"chembl_id": "CHEMBL242", "name": "ABCC1", "description": "MRP1"},
+        {"chembl_id": "CHEMBL243", "name": "ABCC2", "description": "MRP2"},
+        {"chembl_id": "CHEMBL244", "name": "ABCC3", "description": "MRP3"},
+        {"chembl_id": "CHEMBL245", "name": "ABCC4", "description": "MRP4"}
+      ],
+      "criteria": {
+        "substrate": "efflux_ratio >= 5",
+        "non_substrate": "efflux_ratio <= 1",
+        "exclude": "1 < efflux_ratio < 5"
+      }
+    },
+    "influx": {
+      "description": "SLC转运体内排数据",
+      "targets": [
+        {"name": "SLC22A1", "description": "OCT1"},
+        {"name": "SLC22A2", "description": "OCT2"},
+        {"name": "SLC22A3", "description": "OCT3"},
+        {"name": "SLC22A6", "description": "OAT1"},
+        {"name": "SLC22A8", "description": "OAT3"},
+        {"name": "SLCO1A2", "description": "OATP1A2"},
+        {"name": "SLCO1B1", "description": "OATP1B1"},
+        {"name": "SLCO2B1", "description": "OATP2B1"}
+      ],
+      "criteria": {
+        "substrate": "activity_comment contains 'substrate' or 'uptake'",
+        "non_substrate": "activity_comment contains 'non-substrate' or 'not a substrate' or 'inhibitor'"
+      }
+    },
+    "pampa": {
+      "description": "PAMPA被动扩散数据",
+      "assay_type": "P",
+      "keywords": ["PAMPA", "parallel artificial membrane"],
+      "criteria": {
+        "permeable": "Pe > 4e-6 cm/s",
+        "impermeable": "Pe < 2e-6 cm/s",
+        "exclude": "2e-6 <= Pe <= 4e-6"
+      }
+    },
+    "cns_drugs": {
+      "description": "CNS药物参考列表",
+      "source": "literature_and_drugbank",
+      "count": 42,
+      "cns_active": 32,
+      "cns_inactive": 10
+    }
+  },
+  "output_directory": "data/mechanism",
+  "references": [
+    {
+      "title": "Explaining Blood–Brain Barrier Permeability of Small Molecules by Integrated Analysis of Different Transport Mechanisms",
+      "journal": "Journal of Medicinal Chemistry",
+      "year": 2023,
+      "doi": "10.1021/acs.jmedchem.2c01824",
+      "authors": "Cornelissen et al."
+    }
+  ]
+}

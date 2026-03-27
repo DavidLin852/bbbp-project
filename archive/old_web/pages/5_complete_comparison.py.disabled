@@ -1,0 +1,456 @@
+"""
+Streamlit Page: Complete Model Comparison
+包括所有传统ML模型、GAT、Transformer的全面对比展示
+"""
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from pathlib import Path
+
+st.set_page_config(
+    page_title="Complete Model Comparison",
+    page_icon="🔬",
+    layout="wide"
+)
+
+# =============================================================================
+# Configuration
+# =============================================================================
+
+PROJECT_ROOT = Path(__file__).parent.parent
+ABLATION_DIR = PROJECT_ROOT / "artifacts" / "ablation"
+RESULTS_FILE = ABLATION_DIR / "ALL_FINAL_RESULTS.csv"
+
+st.title("🔬 BBB渗透性预测 - 完整模型-特征矩阵对比")
+st.markdown("---")
+
+# =============================================================================
+# Data Loading
+# =============================================================================
+
+@st.cache_data
+def load_all_results():
+    """加载所有模型结果，包括GAT"""
+    # 尝试读取完整汇总表
+    summary_file = ABLATION_DIR / "FINAL_COMPREHENSIVE_SUMMARY.csv"
+
+    if summary_file.exists():
+        df_all = pd.read_csv(summary_file)
+
+        # 重命名列以匹配原有格式
+        df_all = df_all.rename(columns={
+            'Feature': 'feature',
+            'Model': 'model',
+            'Category': 'model_category',
+            'AUC': 'auc',
+            'F1': 'f1',
+            'MCC': 'mcc',
+            'ACC': 'accuracy',
+            'Precision': 'precision',
+            'Recall': 'recall',
+            'Specificity': 'specificity',
+            'BA': 'ba'
+        })
+
+        # 添加缺失的列
+        if 'feature_dims' not in df_all.columns:
+            feat_dims = {
+                'morgan': 2048, 'maccs': 167, 'atompairs': 1024,
+                'fp2': 2048, 'rdkit_desc': 98, 'combined': 5287, 'graph': 0
+            }
+            df_all['feature_dims'] = df_all['feature'].map(feat_dims)
+
+        # 添加缺失的指标列
+        for col in ['precision', 'recall', 'specificity', 'auprc', 'accuracy']:
+            if col not in df_all.columns:
+                df_all[col] = 0.0
+
+        # 添加特征显示名称
+        def get_feature_display(feat):
+            feat_map = {
+                'morgan': 'Morgan (2048D)',
+                'maccs': 'MACCS (167D)',
+                'atompairs': 'AtomPairs (1024D)',
+                'fp2': 'FP2 (2048D)',
+                'rdkit_desc': 'RDKitDescriptors (98D)',
+                'combined': 'Combined (5287D)',
+                'graph': 'Graph Structure'
+            }
+            return feat_map.get(feat, feat)
+
+        df_all['feature_display'] = df_all['feature'].apply(get_feature_display)
+
+        return df_all
+
+    # 备用方案：读取原有文件
+    df_ml = pd.read_csv(RESULTS_FILE)
+
+    # GAT模型 (手动添加)
+    gat_data = [
+        {"feature": "graph", "model": "GAT_baseline", "auc": 0.9343, "f1": 0.8989, "precision": 0.8757, "recall": 0.9234},
+        {"feature": "graph", "model": "GAT+SMARTS", "auc": 0.9560, "f1": 0.9370, "precision": 0.9060, "recall": 0.9419},
+        {"feature": "graph", "model": "GAT+SMARTS_full", "auc": 0.9479, "f1": 0.9384, "precision": 0.9103, "recall": 0.9384},
+    ]
+    df_gat = pd.DataFrame(gat_data)
+    df_gat['feature_dims'] = 0
+    df_gat['model_category'] = 'GNN'
+
+    # 模型类别
+    def get_model_category(model):
+        if 'GAT' in model:
+            return 'GNN'
+        elif 'MLP' in model:
+            return 'Neural Network'
+        elif 'SVM' in model or 'KNN' in model:
+            return 'Kernel-Based'
+        elif model in ['RF', 'XGB', 'LGBM', 'ETC', 'GB', 'ADA']:
+            return 'Tree Ensemble'
+        elif model in ['LR', 'NB']:
+            return 'Probabilistic'
+        else:
+            return 'Other'
+
+    df_ml['model_category'] = df_ml['model'].apply(get_model_category)
+
+    # 合并所有结果
+    df_all = pd.concat([df_ml, df_gat], ignore_index=True)
+
+    # 添加特征类型分组
+    def get_feature_type(feat):
+        if feat == 'combined':
+            return 'All Features (5,287D)'
+        elif feat == 'graph':
+            return 'Graph Structure'
+        else:
+            return f'Fingerprint ({feat})'
+
+    df_all['feature_display'] = df_all['feature'].apply(get_feature_type)
+
+    return df_all
+
+# =============================================================================
+# Main Dashboard
+# =============================================================================
+
+df_all = load_all_results()
+
+# Sidebar - 筛选器
+st.sidebar.header("⚙️ 筛选选项")
+
+# 模型类别筛选
+st.sidebar.subheader("模型类别")
+model_cats = ['All'] + sorted(df_all['model_category'].unique().tolist())
+selected_cat = st.sidebar.selectbox("模型类别", model_cats)
+
+# 特征类型筛选
+st.sidebar.subheader("特征类型")
+feat_types = ['All'] + sorted(df_all['feature_display'].unique().tolist())
+selected_feat = st.sidebar.selectbox("特征类型", feat_types)
+
+# AUC范围筛选
+st.sidebar.subheader("AUC范围")
+min_auc = float(df_all['auc'].min())
+max_auc = float(df_all['auc'].max())
+auc_range = st.sidebar.slider(
+    "AUC 范围",
+    min_value=min_auc,
+    max_value=max_auc,
+    value=(min_auc, max_auc),
+    step=0.01
+)
+
+# 应用筛选
+filtered = df_all.copy()
+if selected_cat != 'All':
+    filtered = filtered[filtered['model_category'] == selected_cat]
+if selected_feat != 'All':
+    filtered = filtered[filtered['feature_display'] == selected_feat]
+filtered = filtered[(filtered['auc'] >= auc_range[0]) & (filtered['auc'] <= auc_range[1])]
+
+st.sidebar.markdown("---")
+st.sidebar.metric("总实验数", len(df_all))
+st.sidebar.metric("筛选结果", len(filtered))
+
+# =============================================================================
+# Main Content
+# =============================================================================
+
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    st.header("📊 模型性能排行榜")
+
+    # 性能排行榜
+    if len(filtered) > 0:
+        st.subheader("Top 20 模型-特征组合")
+        top20 = filtered.sort_values('auc', ascending=False).head(20).reset_index(drop=True)
+
+        # 格式化显示
+        display_df = top20[['feature_display', 'model', 'auc', 'f1', 'mcc']].copy()
+        display_df.columns = ['特征', '模型', 'AUC', 'F1', 'MCC']
+        display_df['AUC'] = display_df['AUC'].apply(lambda x: f"{x:.4f}")
+        display_df['F1'] = display_df['F1'].apply(lambda x: f"{x:.4f}")
+        display_df['MCC'] = display_df['MCC'].apply(lambda x: f"{x:.4f}")
+
+        # 性能等级着色
+        def color_auc(val):
+            if val >= 0.97:
+                return 'background-color: #d4edda'
+            elif val >= 0.95:
+                return 'background-color: #fff3cd'
+            elif val >= 0.93:
+                return 'background-color: #fff3cd'
+            else:
+                return ''
+
+        display_df['AUC'] = display_df['AUC'].apply(lambda x: f'<span style="background-color: #d4edda">{x}</span>' if float(x) >= 0.97 else f'<span style="background-color: #fff3cd">{x}</span>' if float(x) >= 0.95 else x)
+
+        st.write(display_df.to_html(escape=False, index=False), unsafe_allow_html=True)
+
+        # 下载按钮
+        csv = filtered.sort_values('auc', ascending=False).to_csv(index=False)
+        st.download_button(
+            csv,
+            "model_performance_results.csv",
+            "📥 下载完整结果"
+        )
+
+with col2:
+    st.header("🎯 关键指标")
+
+    # 最佳模型
+    st.subheader("🏆 最佳模型")
+    best_idx = filtered['auc'].idxmax()
+    best_model = filtered.iloc[best_idx]
+
+    st.metric("模型", f"{best_model['model']} on {best_model['feature_display']}")
+    st.metric("AUC", f"{best_model['auc']:.4f}")
+    st.metric("F1", f"{best_model['f1']:.4f}")
+    st.metric("MCC", f"{best_model['mcc']:.4f}")
+
+    st.markdown("---")
+
+    # 性能分布
+    st.subheader("模型类别性能对比")
+    if selected_cat == 'All':
+        cat_stats = df_all.groupby('model_category')['auc'].agg(['mean', 'max', 'count']).sort_values('max', ascending=False)
+    else:
+        cat_stats = filtered.groupby('model_category')['auc'].agg(['mean', 'max', 'count']).sort_values('max', ascending=False)
+
+    st.dataframe(cat_stats)
+
+    st.markdown("---")
+
+    # 特征类型对比
+    st.subheader("特征类型性能对比")
+    if selected_feat == 'All':
+        feat_stats = df_all.groupby('feature_display')['auc'].agg(['mean', 'max', 'count']).sort_values('max', ascending=False)
+    else:
+        feat_stats = filtered.groupby('feature_display')['auc'].agg(['mean', 'max', 'count']).sort_values('max', ascending=False)
+
+    st.dataframe(feat_stats)
+
+# =============================================================================
+# 详细可视化
+# =============================================================================
+
+st.header("📈 交互式可视化")
+
+# Tab 1: 性能对比图
+tab1, tab2, tab3 = st.tabs(["特征对比", "模型对比", "相关性分析"])
+
+with tab1:
+    st.subheader("按特征对比所有模型")
+
+    # 选择特征
+    feat_to_plot = st.selectbox("选择特征", sorted(df_all['feature'].unique()))
+    df_feat = df_all[df_all['feature'] == feat_to_plot].sort_values('auc', ascending=False)
+
+    if len(df_feat) > 0:
+        fig = px.bar(
+            df_feat,
+            x='auc',
+            y='model',
+            color='model_category',
+            orientation='h',
+            title=f'Model Performance on {feat_to_plot.upper()}',
+            color_discrete_sequence=px.colors.qualitative.Plotly,
+            text='auc',
+            text_auto='.4f'
+        )
+        fig.update_layout(height=max(400, 100 + len(df_feat) * 30))
+        st.plotly_chart(fig, use_container_width=True)
+
+with tab2:
+    st.subheader("按模型对比所有特征")
+
+    # 选择模型
+    model_to_plot = st.selectbox("选择模型", sorted(df_all['model'].unique()))
+    df_model = df_all[df_all['model'] == model_to_plot].sort_values('auc', ascending=False)
+
+    if len(df_model) > 0:
+        fig = px.bar(
+            df_model,
+            x='auc',
+            y='feature_display',
+            color='feature_type',
+            orientation='h',
+            title=f'{model_to_plot} Performance Across Features',
+            text='auc',
+            text_auto='.4f'
+        )
+        fig.update_layout(height=max(400, 100 + len(df_model) * 30))
+        st.plotly_chart(fig, use_container_width=True)
+
+with tab3:
+    st.subheader("特征维度 vs 性能散点图")
+
+    # 添加特征维度信息
+    feat_dims = {
+        'maccs': 167,
+        'atompairs': 1024,
+        'fp2': 2048,
+        'morgan': 2048,
+        'combined': 5287,
+        'graph': 0
+    }
+    df_all['feature_dims'] = df_all['feature'].map(lambda x: feat_dims.get(x, 0))
+
+    # 按模型类别标记
+    fig = px.scatter(
+        df_all,
+        x='feature_dims',
+        y='auc',
+        color='model_category',
+        size='f1',
+        hover_data=['model', 'feature'],
+        title='Feature Dimensions vs Performance',
+        labels={'feature_dims': 'Feature Dimensions', 'auc': 'AUC', 'model_category': 'Model Category'}
+    )
+    fig.update_traces(marker_size=5, selector=dict(mode='markers', marker=dict(line=dict(width=1))))
+    st.plotly_chart(fig, use_container_width=True)
+
+# =============================================================================
+# GNN专属分析
+# =============================================================================
+
+st.header("🧠 图神经网络 (GNN) 分析")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("GAT模型性能对比")
+
+    gat_models = [
+        {"model": "GAT_baseline", "auc": 0.9343, "desc": "基础GAT，无预训练"},
+        {"model": "GAT+SMARTS", "auc": 0.9560, "desc": "SMARTS预训练后fine-tune"},
+        {"model": "GAT+SMARTS(full)", "auc": 0.9479, "desc": "完整fine-tuning"},
+    ]
+
+    for gat in gat_models:
+        st.metric(gat['model'], f"{gat['auc']:.4f}", gat['desc'])
+
+    st.markdown("**结论**: GAT+SMARTS预训练显著提升性能 (AUC 0.9343 → 0.9560)")
+
+with col2:
+    st.subheader("GNN vs 传统ML")
+
+    # 对比表
+    comparison_data = {
+        'Model': ['GAT+SMARTS', 'Random Forest', 'XGBoost', 'LightGBM'],
+        'AUC': [0.9560, 0.9701, 0.9688, 0.9678],
+        'Feature': ['Graph', 'Combined', 'Combined', 'Combined'],
+        'Category': ['GNN', 'Tree', 'Tree', 'Tree']
+    }
+    st.dataframe(pd.DataFrame(comparison_data))
+
+# =============================================================================
+# 推荐系统
+# =============================================================================
+
+st.header("💡 推荐系统")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.subheader("🏆 最佳性能")
+    st.markdown("**推荐**: Random Forest + Combined Features")
+    st.markdown("- AUC: 0.9701")
+    st.markdown("- 最适合生产环境")
+    st.markdown("- 稳定性最好")
+
+with col2:
+    st.subheader("⚡ 最快训练")
+    st.markdown("**推荐**: XGBoost + MACCS Keys")
+    st.markdown("- AUC: 0.9656")
+    st.markdown("- 167维，训练<5秒")
+    st.markdown("- 性价比最高")
+
+with col3:
+    st.subheader("🧠 最佳GNN")
+    st.markdown("**推荐**: GAT+SMARTS")
+    st.markdown("- AUC: 0.9560")
+    st.markdown("- 图结构信息")
+    st.markdown("- 可解释性强")
+
+# =============================================================================
+# 模型详情
+# =============================================================================
+
+st.header("🔍 模型详情")
+
+with st.expander("查看模型配置参数"):
+    st.code("""
+模型配置示例：
+
+1. Random Forest (最佳)
+   - n_estimators: 800
+   - max_depth: None
+   - class_weight: balanced_subsample
+   - 特征: Combined (5,287D)
+
+2. XGBoost (快速)
+   - n_estimators: 1200
+   - max_depth: 6
+   - learning_rate: 0.03
+   - 特征: Morgan (2,048D)
+
+3. GAT+SMARTS (GNN最佳)
+   - hidden: 128
+   - heads: 4
+   - layers: 3
+   - dropout: 0.2
+   - 特征: Graph结构
+    """, language="python")
+
+# =============================================================================
+# 导出功能
+# =============================================================================
+
+st.header("📥 导出结果")
+
+st.markdown("选择要导出的内容:")
+
+export_all = st.checkbox("导出所有结果 (CSV)")
+export_plots = st.checkbox("导出图表 (PNG)")
+
+if st.button("生成导出"):
+    if export_all:
+        csv = df_all.sort_values('auc', ascending=False).to_csv(index=False)
+        st.download_button(
+            csv,
+            "complete_model_comparison.csv",
+            "📥 下载完整数据"
+        )
+
+    st.success("✅ 导出准备完成!")
+
+# =============================================================================
+# 页脚
+# =============================================================================
+
+st.markdown("---")
+st.caption("© 2025 BBB Permeability Prediction Project | All models including GNN, Transformer, and Traditional ML")

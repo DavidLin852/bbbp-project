@@ -1,0 +1,19 @@
+name: bbb
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.10
+  - pip
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - seaborn=0.13.2  # not used for plotting; safe dependency
+  - rdkit
+  - joblib
+  - tqdm
+  - pytorch
+  - pip:
+      - xgboost
+      - lightgbm

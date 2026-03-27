@@ -1,0 +1,121 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Generated outputs (heavy)
+artifacts/features/
+artifacts/models/
+artifacts/logs/
+artifacts/cache/
+artifacts/temp_predict/
+artifacts/predictions/
+artifacts/active_learning_cache/
+
+# Analysis outputs (regeneratable)
+artifacts/ablation/
+artifacts/figures/
+artifacts/explain/
+artifacts/smarts_viz/
+artifacts/metrics/
+
+# Keep only essential reports
+!artifacts/reports/
+!artifacts/analysis/
+
+# Archive old outputs (heavy)
+archive/old_outputs/
+archive/external_data/
+archive/images_backup/
+
+# Keep archived source code and docs
+!archive/old_scripts/
+!archive/old_src/
+!archive/old_web/
+!archive/docs_backup/
+!archive/old_docs/
+!archive/pretraining_analysis/
+!archive/root_backup/
+!archive/scripts_backup/
+!archive/analysis/
+
+# Data splits and processed data
+data/splits/
+data/processed/
+data/features/
+
+# Keep raw data
+!data/raw/
+
+# External datasets (heavy)
+data/external/
+data/cns_drugs/
+data/efflux/
+data/influx/
+data/pampa/
+data/transport_mechanisms/
+
+# Keep mechanism data for research
+!data/mechanism/
+
+# ZINC22 data (very large, optional)
+data/zinc20/
+
+# Model files
+*.npy
+*.npz
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.pb
+
+# Large data files (untracked)
+*.tsv.gz
+*.csv.gz
+*.zip
+*.tar.gz
+
+# Large CSV files (untracked)
+20220103_table.csv
+
+# Streamlit
+.streamlit/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

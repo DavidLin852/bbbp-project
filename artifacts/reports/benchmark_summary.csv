@@ -1,0 +1,7 @@
+rank,feature,model_name,test_auc_mean,test_auc_std,test_f1_mean,test_f1_std,train_auc_mean,val_auc_mean,seed_count
+1,morgan,rf,0.9401,0.0454,0.9391,0.027,0.9995,0.9577,3
+2,morgan,xgb,0.9198,0.0674,0.9335,0.031,0.9981,0.9393,3
+3,morgan,lgbm,0.9195,0.0619,0.9363,0.0331,0.9998,0.9457,3
+4,descriptors_basic,rf,0.9159,0.073,0.9397,0.027,0.9995,0.95,3
+5,descriptors_basic,xgb,0.9115,0.0712,0.937,0.0308,0.9998,0.9465,3
+6,descriptors_basic,lgbm,0.9114,0.0815,0.9395,0.0298,0.9998,0.9448,3

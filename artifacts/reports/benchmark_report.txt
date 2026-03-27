@@ -1,0 +1,82 @@
+======================================================================
+BBB PERMEABILITY PREDICTION - BASELINE BENCHMARK
+======================================================================
+
+DATASET: B3DB (Groups A+B)
+SPLIT: Scaffold split (80:10:10)
+SEEDS: 0, 1, 2
+METRIC: Test ROC AUC (primary)
+
+======================================================================
+MAIN CONCLUSION (Stable Baseline)
+======================================================================
+
+Strongest Classical Baseline:
+  Feature:  morgan
+  Model:    rf
+  Test AUC: 0.9401 ¡À 0.0454
+  Test F1:  0.9391 ¡À 0.0000
+  Seeds:    3
+
+This baseline should be used as:
+  - Reference point for new models
+  - Minimum performance threshold
+  - Standard for scaffold-split evaluation
+
+======================================================================
+TEMPORARY OBSERVATIONS
+======================================================================
+
+Based on current experiments (may change with more data):
+
+1. Feature Performance:
+   - morgan: 0.9265 (avg across models)
+   - descriptors_basic: 0.9129 (avg across models)
+
+2. Model Performance:
+   - rf: 0.9280 (avg across features)
+   - xgb: 0.9156 (avg across features)
+   - lgbm: 0.9154 (avg across features)
+
+3. Stability (low std = more stable):
+   - morgan + rf: std=0.0454
+   - morgan + lgbm: std=0.0619
+   - morgan + xgb: std=0.0674
+
+======================================================================
+COMPLETE RESULTS TABLE
+======================================================================
+
+ rank           feature model_name  test_auc_mean  test_auc_std  test_f1_mean  test_f1_std  train_auc_mean  val_auc_mean  seed_count
+    1            morgan         rf         0.9401        0.0454        0.9391       0.0270          0.9995        0.9577           3
+    2            morgan        xgb         0.9198        0.0674        0.9335       0.0310          0.9981        0.9393           3
+    3            morgan       lgbm         0.9195        0.0619        0.9363       0.0331          0.9998        0.9457           3
+    4 descriptors_basic         rf         0.9159        0.0730        0.9397       0.0270          0.9995        0.9500           3
+    5 descriptors_basic        xgb         0.9115        0.0712        0.9370       0.0308          0.9998        0.9465           3
+    6 descriptors_basic       lgbm         0.9114        0.0815        0.9395       0.0298          0.9998        0.9448           3
+
+======================================================================
+NEXT STEPS
+======================================================================
+
+Recommended follow-up experiments:
+
+1. Baseline Refinement:
+   - Hyperparameter tuning on best baseline
+   - Test additional features (combined, maccs)
+   - Test additional models (svm, knn)
+
+2. Ablation Studies:
+   - Compare scaffold vs random split
+   - Test different group filters (A,B,C)
+   - Analyze overfitting (train vs val vs test gap)
+
+3. Advanced Models (future):
+   - GNN models (GAT, GCN)
+   - Transformer models
+   - Ensemble methods
+
+NOTE: Do not proceed to advanced models until baseline
+      is fully understood and stable.
+
+======================================================================

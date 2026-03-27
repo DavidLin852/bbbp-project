@@ -1,0 +1,97 @@
+# ============================================================
+# BBB Permeability Prediction Platform - Docker Compose
+# ============================================================
+#
+# 使用方法:
+#   docker-compose up -d          # 启动服务
+#   docker-compose logs -f        # 查看日志
+#   docker-compose down           # 停止服务
+#   docker-compose build --no-cache  # 重新构建
+# ============================================================
+
+version: '3.8'
+
+services:
+  # BBB预测Web应用
+  bbb-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bbb-prediction-app
+    ports:
+      - "8501:8501"
+    volumes:
+      # 持久化数据
+      - bbb_data:/app/data
+      - bbb_artifacts:/app/artifacts
+      - bbb_outputs:/app/outputs
+
+      # 临时预测缓存 (可选，减少挂载以提高性能)
+      # - ./temp_predict:/app/artifacts/temp_predict
+
+    environment:
+      # Streamlit配置
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+
+      # Python环境
+      - PYTHONUNBUFFERED=1
+
+      # 资源配置 (可选)
+      - STREAMLIT_SERVER_MAXUploadSize=200
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    # 重启策略
+    restart: unless-stopped
+
+    # 资源限制 (可选，根据服务器配置调整)
+    deploy:
+      resources:
+        limits:
+          # 内存限制 (无GPU情况下建议4GB+)
+          memory: 8G
+          # CPU限制
+          cpus: '4.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+
+  # 可选: BBB API服务 (如果需要REST API)
+  # bbb-api:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.api
+  #   container_name: bbb-prediction-api
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - bbb_artifacts:/app/artifacts
+  #   environment:
+  #     - API_HOST=0.0.0.0
+  #     - API_PORT=8000
+  #   depends_on:
+  #     - bbb-app
+  #   restart: unless-stopped
+
+# 命名卷 - 持久化数据
+volumes:
+  bbb_data:
+    driver: local
+  bbb_artifacts:
+    driver: local
+  bbb_outputs:
+    driver: local
+
+# 网络配置
+networks:
+  default:
+    name: bbb-network
+    driver: bridge

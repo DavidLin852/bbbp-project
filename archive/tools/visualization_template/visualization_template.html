@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBB Model Comparison Visualization Template</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: #e0e0e0;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        h3 {
+            color: #555;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        button.success {
+            background: #28a745;
+        }
+
+        button.success:hover {
+            background: #218838;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+
+        .help-text {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .chart-container {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1000px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .preset-box {
+            background: white;
+            padding: 15px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .preset-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .color-scheme {
+            display: flex;
+            gap: 15px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+
+        .color-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+
+        .color-box {
+            width: 30px;
+            height: 20px;
+            border: 1px solid #333;
+            border-radius: 3px;
+        }
+
+        .stats {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .stats-table th,
+        .stats-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .stats-table th {
+            background: #667eea;
+            color: white;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+
+        .info {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 BBB Model Performance Visualization Tool</h1>
+        <p class="subtitle">Interactive template for generating model comparison charts</p>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('data-entry')">📊 Data Entry</button>
+            <button class="tab" onclick="switchTab('preset1')">🎯 Preset 1: SMARTS Importance</button>
+            <button class="tab" onclick="switchTab('preset2')">📈 Preset 2: Dataset Impact</button>
+            <button class="tab" onclick="switchTab('visualize')">📈 Generate Charts</button>
+        </div>
+
+        <!-- Tab 1: Data Entry -->
+        <div id="data-entry" class="tab-content active">
+            <div class="section">
+                <h2>📥 Manual Data Entry</h2>
+                <div class="help-text">
+                    <strong>Format:</strong> CSV format with columns: Dataset, Model, AUC, Precision, Recall, F1<br>
+                    <strong>Example:</strong> A,B,RF+SMARTS,0.989,0.946,0.980,0.963
+                </div>
+
+                <h3>Method 1: Paste CSV Data</h3>
+                <textarea id="csvInput" placeholder="A,B,RF,0.984,0.938,0.980,0.958
+A,B,RF+SMARTS,0.989,0.946,0.980,0.963
+A,B,LGBM,0.964,0.944,0.941,0.943
+..."></textarea>
+
+                <div class="button-group">
+                    <button onclick="loadCSV()">📋 Load CSV Data</button>
+                    <button class="secondary" onclick="clearData()">🗑️ Clear Data</button>
+                </div>
+
+                <h3>Method 2: Upload CSV File</h3>
+                <input type="file" id="csvFile" accept=".csv" onchange="loadCSVFile(event)">
+            </div>
+
+            <div class="section" id="dataStats" style="display:none;">
+                <h2>📊 Current Data Statistics</h2>
+                <div class="stats">
+                    <table class="stats-table" id="statsTable">
+                        <!-- Filled dynamically -->
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Preset 1 - SMARTS Importance -->
+        <div id="preset1" class="tab-content">
+            <div class="section">
+                <h2>🎯 Preset 1: SMARTS Pretraining Importance</h2>
+                <p style="margin-bottom: 15px; color: #666;">
+                    Using <strong>A,B dataset</strong> to compare baseline models vs SMARTS-enhanced models
+                </p>
+
+                <div class="preset-box">
+                    <h3>📋 Preset Data: A,B Dataset Comparison</h3>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                        Comparing: RF vs RF+SMARTS, LGBM vs LGBM+SMARTS, XGB vs XGB+SMARTS, GAT vs GAT+SMARTS
+                    </p>
+                    <textarea id="preset1Data">A,B,RF,0.984,0.938,0.980,0.958
+A,B,RF+SMARTS,0.989,0.946,0.980,0.963
+A,B,LGBM,0.964,0.944,0.941,0.943
+A,B,LGBM+SMARTS,0.984,0.968,0.959,0.963
+A,B,XGB,0.950,0.920,0.940,0.930
+A,B,XGB+SMARTS,0.986,0.968,0.959,0.963
+A,B,GAT,0.921,0.952,0.977,0.964
+A,B,GAT+SMARTS,0.965,0.950,0.975,0.962</textarea>
+                    <div class="button-group">
+                        <button class="success" onclick="loadPreset(1)">✅ Load Preset 1 Data</button>
+                        <button class="secondary" onclick="showPreset1Help()">❓ Show Explanation</button>
+                    </div>
+                </div>
+
+                <div id="preset1Help" style="display:none;" class="help-text">
+                    <strong>Analysis Focus:</strong><br>
+                    • Compare each baseline model (RF, LGBM, XGB, GAT) with its SMARTS-enhanced version<br>
+                    • Calculate improvement: ΔAUC = AUC<sub>SMARTS</sub> - AUC<sub>baseline</sub><br>
+                    • Visualize which models benefit most from SMARTS pretraining<br>
+                    • Color coding: Same base color, darker shade for SMARTS version
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Preset 2 - Dataset Impact -->
+        <div id="preset2" class="tab-content">
+            <div class="section">
+                <h2>📈 Preset 2: Dataset Impact Analysis</h2>
+                <p style="margin-bottom: 15px; color: #666;">
+                    Using <strong>SMARTS-enhanced models</strong> to compare performance across different dataset sizes
+                </p>
+
+                <div class="preset-box">
+                    <h3>📋 Preset Data: Dataset Size Impact (SMARTS Models)</h3>
+                    <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                        Comparing RF+SMARTS, LGBM+SMARTS, XGB+SMARTS, GAT+SMARTS across datasets: A, A,B, A,B,C, A,B,C,D
+                    </p>
+                    <textarea id="preset2Data">A,RF+SMARTS,0.927,0.903,1.000,0.949
+A,LGBM+SMARTS,0.882,0.937,0.957,0.947
+A,XGB+SMARTS,0.910,0.935,0.935,0.935
+A,GAT+SMARTS,0.950,0.940,0.970,0.955
+A,B,RF+SMARTS,0.989,0.946,0.980,0.963
+A,B,LGBM+SMARTS,0.984,0.968,0.959,0.963
+A,B,XGB+SMARTS,0.986,0.968,0.959,0.963
+A,B,GAT+SMARTS,0.965,0.950,0.975,0.962
+A,B,C,RF+SMARTS,0.954,0.877,0.925,0.901
+A,B,C,LGBM+SMARTS,0.943,0.907,0.887,0.897
+A,B,C,XGB+SMARTS,0.943,0.894,0.889,0.892
+A,B,C,GAT+SMARTS,0.920,0.900,0.930,0.915
+A,B,C,D,RF+SMARTS,0.958,0.874,0.938,0.905
+A,B,C,D,LGBM+SMARTS,0.944,0.882,0.905,0.894
+A,B,C,D,XGB+SMARTS,0.946,0.888,0.895,0.892
+A,B,C,D,GAT+SMARTS,0.935,0.880,0.910,0.895</textarea>
+                    <div class="button-group">
+                        <button class="success" onclick="loadPreset(2)">✅ Load Preset 2 Data</button>
+                        <button class="secondary" onclick="showPreset2Help()">❓ Show Explanation</button>
+                    </div>
+                </div>
+
+                <div id="preset2Help" style="display:none;" class="help-text">
+                    <strong>Analysis Focus:</strong><br>
+                    • Track model performance as dataset size increases: A (106) → A,B (496) → A,B,C (1060) → A,B,C,D (6296)<br>
+                    • Observe if SMARTS enhancement helps more on small or large datasets<br>
+                    • Identify scaling behavior: Which models maintain performance as data grows?<br>
+                    • Expected trend: Performance usually improves with more data, then plateaus
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>🎨 Color Scheme Reference</h3>
+                <div class="color-scheme">
+                    <div class="color-item">
+                        <div class="color-box" style="background: #3498db;"></div>
+                        <span>RF (baseline)</span>
+                    </div>
+                    <div class="color-item">
+                        <div class="color-box" style="background: #1a5276;"></div>
+                        <span>RF+SMARTS</span>
+                    </div>
+                    <div class="color-item">
+                        <div class="color-box" style="background: #2ecc71;"></div>
+                        <span>LGBM (baseline)</span>
+                    </div>
+                    <div class="color-item">
+                        <div class="color-box" style="background: #1e8449;"></div>
+                        <span>LGBM+SMARTS</span>
+                    </div>
+                    <div class="color-item">
+                        <div class="color-box" style="background: #f39c12;"></div>
+                        <span>XGB (baseline)</span>
+                    </div>
+                    <div class="color-item">
+                        <div class="color-box" style="background: #a04000;"></div>
+                        <span>XGB+SMARTS</span>
+                    </div>
+                    <div class="color-item">
+                        <div class="color-box" style="background: #9b59b6;"></div>
+                        <span>GAT (baseline)</span>
+                    </div>
+                    <div class="color-item">
+                        <div class="color-box" style="background: #6c3483;"></div>
+                        <span>GAT+SMARTS</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Visualize -->
+        <div id="visualize" class="tab-content">
+            <div class="section">
+                <h2>📊 Generate Visualization Charts</h2>
+
+                <div class="info" id="dataStatus" style="display:none;">
+                    <strong>ℹ️ Data Status:</strong> <span id="statusText"></span>
+                </div>
+
+                <div class="warning" id="noDataWarning">
+                    <strong>⚠️ No Data Loaded:</strong> Please load data from Data Entry tab or use Presets 1/2 before generating charts.
+                </div>
+
+                <div class="button-group" id="chartButtons" style="display:none;">
+                    <button onclick="generateAllCharts()">🎨 Generate All 4 Charts</button>
+                    <button onclick="generateHeatmap()">🔥 Chart 1: Heatmap</button>
+                    <button onclick="generateBarplot()">📊 Chart 2: AUC Barplot</button>
+                    <button onclick="generateScatter()">✨ Chart 3: AUC vs F1 Scatter</button>
+                    <button onclick="generateComplexity()">📈 Chart 4: Dataset Complexity</button>
+                    <button class="success" onclick="exportAllCharts()">💾 Export All Charts (PNG)</button>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="chart-container">
+                    <h3>Chart 1: Performance Metrics Heatmap</h3>
+                    <div id="heatmapChart"></div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Chart 2: AUC Score Comparison</h3>
+                    <div id="barplotChart"></div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Chart 3: AUC vs F1 Scatter Plot</h3>
+                    <div id="scatterChart"></div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Chart 4: Dataset Complexity Impact</h3>
+                    <div id="complexityChart"></div>
+                </div>
+            </div>
+
+            <div class="section" style="margin-top: 20px;">
+                <h3>📊 Performance Summary Table</h3>
+                <div id="summaryTable" class="stats">
+                    <p style="text-align: center; color: #999;">Generate charts to see summary</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global data storage
+        let modelData = [];
+        const MODEL_COLORS = {
+            'RF': '#3498db',
+            'RF+SMARTS': '#1a5276',
+            'LGBM': '#2ecc71',
+            'LGBM+SMARTS': '#1e8449',
+            'XGB': '#f39c12',
+            'XGB+SMARTS': '#a04000',
+            'GAT': '#9b59b6',
+            'GAT+SMARTS': '#6c3483'
+        };
+
+        const MODEL_ORDER = ['RF', 'RF+SMARTS', 'LGBM', 'LGBM+SMARTS',
+                            'XGB', 'XGB+SMARTS', 'GAT', 'GAT+SMARTS'];
+
+        const DATASET_ORDER = ['A', 'A,B', 'A,B,C', 'A,B,C,D'];
+        const DATASET_SIZES = {'A': 106, 'A,B': 496, 'A,B,C': 1060, 'A,B,C,D': 6296};
+
+        // Tab switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        // Parse CSV data
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            const data = [];
+
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+                const parts = line.split(',').map(s => s.trim());
+
+                if (parts.length >= 6) {
+                    data.push({
+                        dataset: parts[0],
+                        model: parts[1],
+                        auc: parseFloat(parts[2]),
+                        precision: parseFloat(parts[3]),
+                        recall: parseFloat(parts[4]),
+                        f1: parseFloat(parts[5])
+                    });
+                }
+            }
+
+            return data;
+        }
+
+        // Load CSV from textarea
+        function loadCSV() {
+            const csvText = document.getElementById('csvInput').value;
+            if (!csvText.trim()) {
+                alert('Please enter CSV data first!');
+                return;
+            }
+
+            modelData = parseCSV(csvText);
+            updateDataStats();
+            updateChartButtons();
+            alert(`✅ Loaded ${modelData.length} data records!`);
+        }
+
+        // Load CSV file
+        function loadCSVFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const csvText = e.target.result;
+                modelData = parseCSV(csvText);
+                document.getElementById('csvInput').value = csvText;
+                updateDataStats();
+                updateChartButtons();
+                alert(`✅ Loaded ${modelData.length} data records from ${file.name}!`);
+            };
+            reader.readAsText(file);
+        }
+
+        // Load preset data
+        function loadPreset(presetNum) {
+            const csvText = document.getElementById(`preset${presetNum}Data`).value;
+            modelData = parseCSV(csvText);
+            updateDataStats();
+            updateChartButtons();
+
+            // Switch to visualize tab
+            switchTab('visualize');
+            document.querySelectorAll('.tab')[3].classList.add('active');
+            document.querySelectorAll('.tab')[presetNum].classList.remove('active');
+
+            alert(`✅ Loaded Preset ${presetNum} with ${modelData.length} records!`);
+        }
+
+        // Clear all data
+        function clearData() {
+            modelData = [];
+            document.getElementById('csvInput').value = '';
+            updateDataStats();
+            updateChartButtons();
+        }
+
+        // Update data statistics display
+        function updateDataStats() {
+            const statsDiv = document.getElementById('dataStats');
+            const statsTable = document.getElementById('statsTable');
+
+            if (modelData.length === 0) {
+                statsDiv.style.display = 'none';
+                return;
+            }
+
+            statsDiv.style.display = 'block';
+
+            // Calculate statistics
+            const datasets = [...new Set(modelData.map(d => d.dataset))];
+            const models = [...new Set(modelData.map(d => d.model))];
+
+            let html = '<tr><th>Metric</th><th>Value</th></tr>';
+            html += `<tr><td>Total Records</td><td>${modelData.length}</td></tr>`;
+            html += `<tr><td>Datasets</td><td>${datasets.join(', ')}</td></tr>`;
+            html += `<tr><td>Models</td><td>${models.length}</td></tr>`;
+            html += `<tr><td>Model List</td><td>${models.join(', ')}</td></tr>`;
+
+            statsTable.innerHTML = html;
+        }
+
+        // Update chart button states
+        function updateChartButtons() {
+            const hasData = modelData.length > 0;
+            document.getElementById('noDataWarning').style.display = hasData ? 'none' : 'block';
+            document.getElementById('chartButtons').style.display = hasData ? 'flex' : 'none';
+            document.getElementById('dataStatus').style.display = hasData ? 'block' : 'none';
+
+            if (hasData) {
+                const datasets = [...new Set(modelData.map(d => d.dataset))].sort();
+                const models = [...new Set(modelData.map(d => d.model))].sort();
+                document.getElementById('statusText').textContent =
+                    `${modelData.length} records | Datasets: ${datasets.join(', ')} | Models: ${models.join(', ')}`;
+            }
+        }
+
+        // Get data for specific model and dataset
+        function getModelData(model, dataset) {
+            return modelData.find(d => d.model === model && d.dataset === dataset);
+        }
+
+        // Generate all 4 charts
+        function generateAllCharts() {
+            generateHeatmap();
+            generateBarplot();
+            generateScatter();
+            generateComplexity();
+            generateSummaryTable();
+        }
+
+        // Chart 1: Performance Metrics Heatmap
+        function generateHeatmap() {
+            const datasets = [...new Set(modelData.map(d => d.dataset))].sort();
+            const models = MODEL_ORDER.filter(m => modelData.some(d => d.model === m));
+
+            const metrics = ['AUC', 'Precision', 'Recall', 'F1'];
+            const metricKeys = ['auc', 'precision', 'recall', 'f1'];
+
+            const fig = Plotly.newPlot('heatmapChart', [], {
+                title: { text: 'Performance Metrics Heatmap', font: { size: 16, family: 'Times New Roman' } },
+                height: 500
+            });
+
+            const subplots = [];
+            for (let i = 0; i < 4; i++) {
+                subplots.push({
+                    type: 'heatmap',
+                    z: [],
+                    x: models,
+                    y: datasets,
+                    colorscale: 'RdYlGn',
+                    zmin: 0.80,
+                    zmax: 1.0,
+                    colorbar: { title: { text: metrics[i] } }
+                });
+
+                // Fill z matrix
+                const zMatrix = [];
+                for (const ds of datasets) {
+                    const row = [];
+                    for (const model of models) {
+                        const data = getModelData(model, ds);
+                        row.push(data ? data[metricKeys[i]] : null);
+                    }
+                    zMatrix.push(row);
+                }
+                subplots[i].z = zMatrix;
+            }
+
+            const subplotTitles = metrics.map(m => ({
+                text: m,
+                font: { size: 13, family: 'Times New Roman' }
+            }));
+
+            const layout = {
+                title: { text: 'Performance Metrics Heatmap', font: { size: 16, family: 'Times New Roman' } },
+                grid: { rows: 2, columns: 2, pattern: 'independent' },
+                height: 600
+            };
+
+            Plotly.newPlot('heatmapChart', [
+                { type: 'heatmap', z: subplots[0].z, x: models, y: datasets, colorscale: 'RdYlGn', zmin: 0.80, zmax: 1.0, colorbar: { title: { text: 'AUC' } } },
+                { type: 'heatmap', z: subplots[1].z, x: models, y: datasets, colorscale: 'RdYlGn', zmin: 0.80, zmax: 1.0, colorbar: { title: { text: 'Precision' } } },
+                { type: 'heatmap', z: subplots[2].z, x: models, y: datasets, colorscale: 'RdYlGn', zmin: 0.80, zmax: 1.0, colorbar: { title: { text: 'Recall' } } },
+                { type: 'heatmap', z: subplots[3].z, x: models, y: datasets, colorscale: 'RdYlGn', zmin: 0.80, zmax: 1.0, colorbar: { title: { text: 'F1' } } }
+            ], {
+                grid: { rows: 2, columns: 2 },
+                title: { text: 'Performance Metrics Heatmap: All Models Across Datasets', font: { size: 16, family: 'Times New Roman' } },
+                height: 700
+            });
+        }
+
+        // Chart 2: AUC Barplot
+        function generateBarplot() {
+            const datasets = [...new Set(modelData.map(d => d.dataset))].sort();
+            const models = MODEL_ORDER.filter(m => modelData.some(d => d.model === m));
+
+            const traces = [];
+
+            for (const ds of datasets) {
+                const yValues = models.map(m => {
+                    const data = getModelData(m, ds);
+                    return data ? data.auc : 0;
+                });
+
+                traces.push({
+                    x: models,
+                    y: yValues,
+                    name: ds,
+                    type: 'bar',
+                    marker: {
+                        color: models.map(m => MODEL_COLORS[m] || '#999')
+                    },
+                    text: yValues.map(v => v > 0 ? v.toFixed(3) : ''),
+                    textposition: 'auto',
+                    textfont: { size: 10, family: 'Times New Roman' }
+                });
+            }
+
+            const layout = {
+                title: { text: 'AUC Score Comparison Across Datasets', font: { size: 16, family: 'Times New Roman' } },
+                barmode: 'group',
+                xaxis: { title: { text: 'Model', font: { size: 12 } }, tickangle: -45 },
+                yaxis: { title: { text: 'AUC Score', font: { size: 12 } }, range: [0.80, 1.0] },
+                height: 500,
+                font: { family: 'Times New Roman' }
+            };
+
+            Plotly.newPlot('barplotChart', traces, layout);
+        }
+
+        // Chart 3: AUC vs F1 Scatter
+        function generateScatter() {
+            const models = MODEL_ORDER.filter(m => modelData.some(d => d.model === m));
+
+            const traces = [];
+            const markers = { 'RF': 'circle', 'RF+SMARTS': 'circle', 'LGBM': 'square', 'LGBM+SMARTS': 'square',
+                             'XGB': 'triangle-up', 'XGB+SMARTS': 'triangle-up', 'GAT': 'diamond', 'GAT+SMARTS': 'diamond' };
+
+            for (const model of models) {
+                const modelRecords = modelData.filter(d => d.model === model);
+                if (modelRecords.length === 0) continue;
+
+                traces.push({
+                    x: modelRecords.map(d => d.auc),
+                    y: modelRecords.map(d => d.f1),
+                    mode: 'markers',
+                    name: model,
+                    marker: {
+                        size: 12,
+                        color: MODEL_COLORS[model],
+                        symbol: markers[model] || 'circle',
+                        line: { color: 'black', width: 1.5 }
+                    },
+                    text: modelRecords.map(d => d.dataset),
+                    hovertemplate: '%{name}<br>Dataset: %{text}<br>AUC: %{x:.3f}<br>F1: %{y:.3f}<extra></extra>'
+                });
+            }
+
+            // Add diagonal reference line
+            traces.push({
+                x: [0.80, 1.0],
+                y: [0.80, 1.0],
+                mode: 'lines',
+                name: 'Perfect Balance (AUC = F1)',
+                line: { color: 'black', width: 1.5, dash: 'dash' },
+                hoverinfo: 'skip'
+            });
+
+            const layout = {
+                title: { text: 'AUC vs F1: Performance Trade-off', font: { size: 16, family: 'Times New Roman' } },
+                xaxis: { title: { text: 'AUC Score', font: { size: 13 } }, range: [0.80, 1.0] },
+                yaxis: { title: { text: 'F1 Score', font: { size: 13 } }, range: [0.80, 1.0] },
+                height: 600,
+                font: { family: 'Times New Roman' },
+                hovermode: 'closest'
+            };
+
+            Plotly.newPlot('scatterChart', traces, layout);
+        }
+
+        // Chart 4: Dataset Complexity Impact
+        function generateComplexity() {
+            const datasets = DATASET_ORDER.filter(ds => modelData.some(d => d.dataset === ds));
+            const models = MODEL_ORDER.filter(m => modelData.some(d => d.model === m));
+
+            const metrics = ['AUC', 'Precision', 'Recall', 'F1'];
+            const metricKeys = ['auc', 'precision', 'recall', 'f1'];
+
+            const traces = [];
+            const metricTraces = [[], [], [], []];
+
+            for (const model of models) {
+                const lineStyle = '+SMARTS' in model ? 'dash' : (model === 'GAT' || model === 'GAT+SMARTS' ? 'dot' : 'solid');
+
+                for (let mi = 0; mi < 4; mi++) {
+                    const yValues = datasets.map(ds => {
+                        const data = getModelData(model, ds);
+                        return data ? data[metricKeys[mi]] : null;
+                    });
+
+                    metricTraces[mi].push({
+                        x: datasets.map(ds => `${ds}<br>n=${DATASET_SIZES[ds] || '?'}`),
+                        y: yValues,
+                        name: model,
+                        mode: 'lines+markers',
+                        line: { color: MODEL_COLORS[model], width: 2.5, dash: lineStyle },
+                        marker: { size: 8 },
+                        connectgaps: false
+                    });
+                }
+            }
+
+            const layouts = metrics.map((m, i) => ({
+                title: { text: `${m} vs Dataset Size`, font: { size: 14, family: 'Times New Roman' } },
+                xaxis: { title: { text: 'Dataset (Sample Size)' } },
+                yaxis: { title: { text: m }, range: [0.80, 1.0] },
+                height: 350,
+                font: { family: 'Times New Roman' },
+                hovermode: 'x unified',
+                legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(255,255,255,0.8)' }
+            }));
+
+            Plotly.newPlot('complexityChart', metricTraces[0], layouts[0]);
+        }
+
+        // Generate summary table
+        function generateSummaryTable() {
+            // Calculate average performance per model
+            const modelStats = {};
+            for (const d of modelData) {
+                if (!modelStats[d.model]) {
+                    modelStats[d.model] = { auc: [], precision: [], recall: [], f1: [] };
+                }
+                modelStats[d.model].auc.push(d.auc);
+                modelStats[d.model].precision.push(d.precision);
+                modelStats[d.model].recall.push(d.recall);
+                modelStats[d.model].f1.push(d.f1);
+            }
+
+            // Calculate averages
+            const averages = [];
+            for (const model in modelStats) {
+                const s = modelStats[model];
+                averages.push({
+                    model: model,
+                    auc: (s.auc.reduce((a,b) => a+b, 0) / s.auc.length),
+                    precision: (s.precision.reduce((a,b) => a+b, 0) / s.precision.length),
+                    recall: (s.recall.reduce((a,b) => a+b, 0) / s.recall.length),
+                    f1: (s.f1.reduce((a,b) => a+b, 0) / s.f1.length)
+                });
+            }
+
+            // Sort by average score
+            averages.forEach(a => {
+                a.avg = (a.auc + a.precision + a.recall + a.f1) / 4;
+            });
+            averages.sort((a, b) => b.avg - a.avg);
+
+            let html = '<table class="stats-table"><thead><tr>';
+            html += '<th>Rank</th><th>Model</th><th>Avg AUC</th><th>Avg Precision</th><th>Avg Recall</th><th>Avg F1</th><th>Avg Score</th></tr></thead><tbody>';
+
+            const medals = ['🥇', '🥈', '🥉'];
+            for (let i = 0; i < averages.length; i++) {
+                const a = averages[i];
+                html += `<tr>
+                    <td>${medals[i] || (i+1)}</td>
+                    <td><strong>${a.model}</strong></td>
+                    <td>${a.auc.toFixed(3)}</td>
+                    <td>${a.precision.toFixed(3)}</td>
+                    <td>${a.recall.toFixed(3)}</td>
+                    <td>${a.f1.toFixed(3)}</td>
+                    <td><strong>${a.avg.toFixed(3)}</strong></td>
+                </tr>`;
+            }
+
+            html += '</tbody></table>';
+            document.getElementById('summaryTable').innerHTML = html;
+        }
+
+        // Export all charts as PNG
+        function exportAllCharts() {
+            const charts = ['heatmapChart', 'barplotChart', 'scatterChart', 'complexityChart'];
+            const names = ['heatmap', 'barplot', 'scatter', 'complexity'];
+
+            let index = 0;
+            function downloadNext() {
+                if (index >= charts.length) {
+                    alert('✅ All charts exported successfully!');
+                    return;
+                }
+
+                Plotly.downloadImage(charts[index], {
+                    format: 'png',
+                    width: 1200,
+                    height: 800,
+                    filename: `BBB_model_comparison_${names[index]}`
+                }).then(() => {
+                    index++;
+                    setTimeout(downloadNext, 500);
+                });
+            }
+
+            downloadNext();
+        }
+
+        // Help functions
+        function showPreset1Help() {
+            const help = document.getElementById('preset1Help');
+            help.style.display = help.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function showPreset2Help() {
+            const help = document.getElementById('preset2Help');
+            help.style.display = help.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Initialize
+        window.onload = function() {
+            console.log('BBB Model Visualization Template loaded');
+        };
+    </script>
+</body>
+</html>
