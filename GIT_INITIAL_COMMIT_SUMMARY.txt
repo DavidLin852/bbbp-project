@@ -1,0 +1,140 @@
+GIT INITIALIZATION SUMMARY
+Date: 2025-03-27
+Status: Ready for initial commit
+
+---
+
+## WHAT WILL BE TRACKED (511 files, ~354 MB total)
+
+### 1. Core Source Code (90 files)
+- scripts/ (baseline/, analysis/) - 10 scripts
+- src/ (data/, features/, models/, train/, evaluate/, utils/, config.py) - 15 modules
+- docs/ - 8 documentation files
+
+### 2. Archived Source Code (63 files, ~829 KB)
+- archive/old_scripts/ - Old numbered scripts, mechanism, visualization
+- archive/old_src/ - Old baseline, featurize, vae, gan, generation
+- archive/old_web/ - Streamlit web interface
+
+### 3. Artifacts - Analysis & Reports (179 files, ~1.7 GB)
+- artifacts/reports/ - Benchmark reports (CSV, TXT) - 6 files
+- artifacts/ablation/ - Ablation study results (~1.6 GB) - 43 files
+- artifacts/analysis/ - Analysis results - 2 files
+- artifacts/explain/ - Interpretability results (~3.8 MB) - 8 files
+- artifacts/figures/ - Figures and plots (~30 MB) - 87 files
+- artifacts/smarts_viz/ - SMARTS visualizations (~848 KB) - 5 files
+- artifacts/metrics/ - Old metrics (~1.4 MB) - 28 files
+
+### 4. Archive - Documentation (37 files, ~27 MB)
+- archive/docs_backup/ - Old documentation (~328 KB)
+- archive/images_backup/ - Backup images (~26 MB)
+- archive/old_docs/ - Old docs (~12 KB)
+- archive/pretraining_analysis/ - Pre-training analysis (~588 KB)
+- archive/root_backup/ - Root backup (~128 KB)
+- archive/scripts_backup/ - Scripts backup (~320 KB)
+
+### 5. Data (3 files, ~285 MB)
+- data/raw/B3DB_classification.tsv (~2.6 MB) ✅
+- data/raw/B3DB_regression.tsv (~413 KB) ✅
+- data/external/structures.sdf (~277 MB) ⚠️ LARGE
+
+### 6. Configuration & Documentation (39 files)
+- .gitignore, requirements.txt, README.md, CLAUDE.md
+- Dockerfile, docker-compose.yml
+- PROJECT_CONTEXT.md, TASK.md, etc.
+
+---
+
+## WHAT WILL BE IGNORED (.gitignore)
+
+### 1. Generated Outputs (~3.6 GB - excluded)
+- artifacts/features/ (~866 MB) - Computed features
+- artifacts/models/ (~2.6 GB) - Trained models
+- artifacts/cache/ (~21 MB) - Feature cache
+- artifacts/predictions/ (~6.1 MB) - Old predictions
+- artifacts/temp_predict/ (~2.5 MB) - Temporary predictions
+- artifacts/active_learning_cache/ - Empty
+- artifacts/logs/ (~4 KB) - Old logs
+
+### 2. Archive Outputs (~152 MB - excluded)
+- archive/old_outputs/ (~126 MB) - Old experiment outputs
+- archive/external_data/ (~26 MB) - External datasets
+
+### 3. Data Splits (~unknown - excluded)
+- data/splits/ - Generated scaffold splits
+- data/processed/ - Processed data
+- data/features/ - Computed features
+
+### 4. External Datasets (~unknown - excluded)
+- data/cns_drugs/ - CNS drugs dataset
+- data/efflux/ - Efflux transporters
+- data/influx/ - Influx transporters
+- data/pampa/ - PAMPA data
+- data/transport_mechanisms/ - Transport mechanisms
+- data/zinc20/ - ZINC22 data (if present)
+
+### 5. Standard Ignores
+- __pycache__/, *.pyc
+- .venv/, venv/, ENV/
+- .vscode/, .idea/
+- *.npy, *.npz, *.pkl, *.joblib, *.pt, *.pth, *.ckpt
+- *.log, *.tmp, *.bak
+- .streamlit/
+
+---
+
+## LARGE OR RISKY FILES TRACKED
+
+### Large Files (> 10 MB)
+1. data/external/structures.sdf (~277 MB) ⚠️
+   - Rationale: May be needed for research
+   - Action: Consider moving to archive/external_data/ if not needed
+
+2. artifacts/ablation/ (~1.6 GB) ⚠️
+   - Rationale: Ablation study results (research)
+   - Action: Consider archiving if not actively used
+
+3. artifacts/figures/ (~30 MB) ⚠️
+   - Rationale: Visualization outputs
+   - Action: Consider archiving old figures
+
+4. archive/images_backup/ (~26 MB) ⚠️
+   - Rationale: Backup of old figures
+   - Action: Already in archive, acceptable
+
+### Risky Files (Need Review)
+- artifacts/ablation/ - Contains many CSV files, may be outdated
+- artifacts/metrics/ - Old metrics (superseded by benchmark_summary.csv)
+- data/external/structures.sdf - Large external dataset
+
+---
+
+## RECOMMENDATIONS
+
+### Before Committing
+1. Consider excluding data/external/structures.sdf (277 MB)
+2. Consider archiving artifacts/ablation/ (1.6 GB) to archive/old_artifacts/
+3. Review artifacts/metrics/ - may be outdated
+
+### After Commit
+1. Test baseline pipeline still works
+2. Verify CFFF migration readiness
+3. Consider Git LFS for large files if needed
+
+---
+
+## SUMMARY
+
+✅ **Tracked:** 511 files (~354 MB)
+  - Source code: 90 files (core working baseline)
+  - Archived code: 63 files (legacy reference)
+  - Artifacts: 179 files (reports, analysis, figures)
+  - Data: 3 files (B3DB datasets + external structure)
+
+❌ **Ignored:** ~3.8 GB (generated outputs, cache, models)
+
+⚠️ **Risky:** ~1.9 GB (ablation results, external data)
+
+---
+
+**Status:** Ready for commit (pending user approval)

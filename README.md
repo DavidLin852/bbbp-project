@@ -428,7 +428,7 @@ This project is for research and educational purposes.
 
 ---
 
-**Last Updated:** 2025-03-27
+**Last Updated:** 2026-03-27
 **Project Status:** Baseline established ✅
 **Python Version:** 3.10+
 **Best Baseline:** Random Forest + Morgan (AUC: 0.9401 ± 0.0454)
