@@ -14,7 +14,7 @@ The final application is not unrestricted de novo design. Instead, future candid
 1. Build reliable BBB classification models for BBB+ / BBB-.
 2. Build reliable regression models for logBB.
 3. Compare classical ML models, graph models, and sequence models.
-4. Improve molecular representation using ZINC22 pretraining.
+4. Improve molecular representation using ZINC22 pretraining.2
 5. Provide structural interpretability for candidate analysis.
 6. Support future constrained candidate ranking instead of unconstrained generation.
 
@@ -123,3 +123,11 @@ Current highest priority is:
 2. Build reproducible baselines
 3. Prepare the project for smooth migration to CFFF
 4. Only then expand into ZINC22 pretraining
+
+### Feature Policy for Formal Baselines
+
+Feature families must be evaluated independently. Each feature type (Morgan fingerprints, MACCS keys, FP2, descriptors) should be treated as a separate, standalone baseline input.
+
+**Do NOT concatenate feature families for the formal baseline suite.** Combined or fused representations are optional exploratory work only and should not appear in default benchmark runs.
+
+This policy ensures that performance differences can be attributed to specific feature representations rather than confounded by concatenation.

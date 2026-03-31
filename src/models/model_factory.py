@@ -60,11 +60,11 @@ class ModelFactory:
         """Create SVM model."""
         return self.create_model("svm", config)
 
-    def create_knn(self, config: ModelConfig | None = None) -> BaselineModel:
-        """Create KNN model."""
-        return self.create_model("knn", config)
+    def create_lr(self, config: ModelConfig | None = None) -> BaselineModel:
+        """Create Logistic Regression model."""
+        return self.create_model("lr", config)
 
     @staticmethod
     def get_available_models() -> list[str]:
         """Get list of available model types."""
-        return ["rf", "xgb", "lgbm", "svm", "knn", "lr", "nb", "gb", "ada", "etc"]
+        return ["rf", "xgb", "lgbm", "svm", "lr", "knn", "nb", "gb", "ada", "etc"]

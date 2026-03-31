@@ -28,6 +28,10 @@ if str(project_root) not in sys.path:
 
 def run_command(cmd: list[str], description: str):
     """Run a command and print status."""
+    # Use the same Python interpreter that launched this script
+    if cmd[0] == "python":
+        cmd = [sys.executable] + cmd[1:]
+
     print(f"\n{'='*60}")
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
@@ -62,14 +66,14 @@ def main():
     parser.add_argument(
         "--features",
         type=str,
-        default="morgan,combined,descriptors_basic",
-        help="Comma-separated list of features"
+        default="morgan,maccs,fp2,descriptors_basic",
+        help="Comma-separated list of features (formal baseline: morgan,maccs,fp2,descriptors_basic)"
     )
     parser.add_argument(
         "--models",
         type=str,
-        default="rf,xgb,lgbm",
-        help="Comma-separated list of models"
+        default="rf,xgb,lgbm,svm,lr,knn",
+        help="Comma-separated list of models (formal baseline: rf,xgb,lgbm,svm,lr,knn)"
     )
     parser.add_argument(
         "--skip_preprocess",

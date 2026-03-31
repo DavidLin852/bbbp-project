@@ -153,7 +153,6 @@ class BaselineModel:
                 C=cfg.lr_c,
                 max_iter=cfg.lr_max_iter,
                 random_state=cfg.random_state,
-                n_jobs=cfg.n_jobs,
             )
         elif self.model_type == "nb":
             return GaussianNB()

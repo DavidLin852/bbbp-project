@@ -1,7 +1,5 @@
 feature,model_name,test_auc_mean,test_auc_std
-descriptors_basic,rf,0.9159,0.073
-descriptors_basic,xgb,0.9115,0.0712
-descriptors_basic,lgbm,0.9114,0.0815
-morgan,rf,0.9401,0.0454
-morgan,xgb,0.9198,0.0674
-morgan,lgbm,0.9195,0.0619
+maccs,rf,0.9796,
+maccs,svm,0.9569,
+maccs,knn,0.9529,
+maccs,lr,0.9201,
