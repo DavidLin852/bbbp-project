@@ -18,7 +18,7 @@ import json
 from typing import Dict, List, Tuple, Optional
 
 from rdkit import Chem
-from rdkit.Chem import Descriptors, MACCSkeys, AllChem
+from rdkit.Chem import Descriptors, MACCSkeys, rdFingerprintGenerator
 from xgboost import XGBClassifier
 
 # Add parent directory to path
@@ -120,7 +120,8 @@ class MechanismPredictor:
         if mol is None:
             return np.zeros(n_bits)
         try:
-            morgan = AllChem.GetMorganFingerprintAsBitVect(mol, radius, nBits=n_bits)
+            generator = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=n_bits)
+            morgan = generator.GetFingerprint(mol)
             return np.array(morgan)
         except:
             return np.zeros(n_bits)

@@ -18,6 +18,7 @@ from typing import Literal
 
 import joblib
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import (
     RandomForestClassifier,
     GradientBoostingClassifier,
@@ -97,6 +98,10 @@ class BaselineModel:
         self.model_type = model_type
         self.config = config or ModelConfig()
         self.model = self._create_model()
+        # For LightGBM: sklearn warns if feature-name presence differs
+        # between fit and predict.  We store the column names used at fit
+        # time so predict can produce a matching DataFrame.
+        self._lgbm_columns: list[str] | None = None
 
     def _create_model(self):
         """Create model instance based on type."""
@@ -122,7 +127,6 @@ class BaselineModel:
                 eval_metric="auc",
                 n_jobs=cfg.n_jobs,
                 random_state=cfg.random_state,
-                use_label_encoder=False,
             )
         elif self.model_type == "lgbm":
             return LGBMClassifier(
@@ -134,7 +138,6 @@ class BaselineModel:
                 n_jobs=cfg.n_jobs,
                 random_state=cfg.random_state,
                 verbose=-1,
-                feature_name=[],
             )
         elif self.model_type == "svm":
             return SVC(
@@ -174,24 +177,37 @@ class BaselineModel:
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
 
+    @staticmethod
+    def _to_numpy(X):
+        """Convert sparse or array-like to dense numpy."""
+        if hasattr(X, "toarray"):
+            X = X.toarray()
+        return np.asarray(X)
+
+    def _lgbm_wrap(self, X: np.ndarray) -> pd.DataFrame:
+        """Wrap numpy array in a DataFrame matching LightGBM's auto-generated column names."""
+        cols = self._lgbm_columns
+        if cols is None:
+            cols = [f"Column_{i}" for i in range(X.shape[1])]
+            self._lgbm_columns = cols
+        return pd.DataFrame(X, columns=cols)
+
     def fit(self, X, y):
         """
         Train the model.
 
         Args:
-            X: Feature matrix
+            X: Feature matrix (numpy array or sparse matrix)
             y: Labels
         """
-        # Convert sparse to dense for some models
-        if hasattr(X, "toarray"):
-            if self.model_type in ["svm", "knn", "lr", "nb"]:
-                X = X.toarray()
+        X = self._to_numpy(X)
 
-        # Handle LGBM dtype
+        # LightGBM requires float32; wrap in DataFrame so sklearn's
+        # feature-name check stays consistent with predict.
         if self.model_type == "lgbm":
-            if hasattr(X, "toarray"):
-                X = X.toarray()
-            X = X.astype(np.float32)
+            X = self._lgbm_wrap(X.astype(np.float32))
+        else:
+            pass
 
         self.model.fit(X, y)
         return self
@@ -201,21 +217,15 @@ class BaselineModel:
         Predict class probabilities.
 
         Args:
-            X: Feature matrix
+            X: Feature matrix (numpy array or sparse matrix)
 
         Returns:
             Array of probabilities (n_samples, 2)
         """
-        # Convert sparse to dense for some models
-        if hasattr(X, "toarray"):
-            if self.model_type in ["svm", "knn", "lr", "nb"]:
-                X = X.toarray()
+        X = self._to_numpy(X)
 
-        # Handle LGBM dtype
         if self.model_type == "lgbm":
-            if hasattr(X, "toarray"):
-                X = X.toarray()
-            X = X.astype(np.float32)
+            X = self._lgbm_wrap(X.astype(np.float32))
 
         return self.model.predict_proba(X)
 
@@ -224,21 +234,15 @@ class BaselineModel:
         Predict class labels.
 
         Args:
-            X: Feature matrix
+            X: Feature matrix (numpy array or sparse matrix)
 
         Returns:
             Array of predictions (n_samples,)
         """
-        # Convert sparse to dense for some models
-        if hasattr(X, "toarray"):
-            if self.model_type in ["svm", "knn", "lr", "nb"]:
-                X = X.toarray()
+        X = self._to_numpy(X)
 
-        # Handle LGBM dtype
         if self.model_type == "lgbm":
-            if hasattr(X, "toarray"):
-                X = X.toarray()
-            X = X.astype(np.float32)
+            X = self._lgbm_wrap(X.astype(np.float32))
 
         return self.model.predict(X)
 

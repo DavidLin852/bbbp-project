@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from rdkit import Chem
-    from rdkit.Chem import Descriptors, MACCSkeys, AllChem, DataStructs
+    from rdkit.Chem import Descriptors, MACCSkeys, DataStructs, rdFingerprintGenerator
     from rdkit.Chem.Crippen import MolLogP
 except ImportError:
     logger.error("RDKit not installed. Please install: pip install rdkit")
@@ -245,9 +245,10 @@ class MechanismFeatureExtractor:
                     fingerprints.append(np.zeros(n_bits))
                     continue
 
-                ecfp4 = AllChem.GetMorganFingerprintAsBitVect(
-                    mol, radius=2, nBits=n_bits
+                generator = rdFingerprintGenerator.GetMorganGenerator(
+                    radius=2, fpSize=n_bits
                 )
+                ecfp4 = generator.GetFingerprint(mol)
                 fp_array = np.array(ecfp4)
                 fingerprints.append(fp_array)
 

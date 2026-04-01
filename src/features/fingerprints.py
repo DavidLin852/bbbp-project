@@ -15,7 +15,7 @@ from typing import Literal
 
 import numpy as np
 from rdkit import Chem, DataStructs
-from rdkit.Chem import AllChem, MACCSkeys
+from rdkit.Chem import MACCSkeys, rdFingerprintGenerator
 from scipy import sparse
 
 
@@ -52,6 +52,10 @@ class FingerprintGenerator:
         Returns:
             scipy sparse CSR matrix (N, morgan_bits)
         """
+        generator = rdFingerprintGenerator.GetMorganGenerator(
+            radius=self.morgan_radius,
+            fpSize=self.morgan_bits,
+        )
         fps = []
         for smi in smiles_list:
             mol = Chem.MolFromSmiles(smi)
@@ -59,9 +63,7 @@ class FingerprintGenerator:
                 arr = np.zeros((self.morgan_bits,), dtype=np.int8)
                 fps.append(arr)
                 continue
-            fp = AllChem.GetMorganFingerprintAsBitVect(
-                mol, self.morgan_radius, nBits=self.morgan_bits
-            )
+            fp = generator.GetFingerprint(mol)
             arr = np.zeros((self.morgan_bits,), dtype=np.int8)
             DataStructs.ConvertToNumpyArray(fp, arr)
             fps.append(arr)
@@ -100,6 +102,9 @@ class FingerprintGenerator:
         Returns:
             scipy sparse CSR matrix (N, atom_pairs_bits)
         """
+        generator = rdFingerprintGenerator.GetAtomPairGenerator(
+            fpSize=self.atom_pairs_bits,
+        )
         fps = []
         for smi in smiles_list:
             mol = Chem.MolFromSmiles(smi)
@@ -107,9 +112,7 @@ class FingerprintGenerator:
                 arr = np.zeros((self.atom_pairs_bits,), dtype=np.int8)
                 fps.append(arr)
                 continue
-            fp = AllChem.GetHashedAtomPairFingerprintAsBitVect(
-                mol, nBits=self.atom_pairs_bits
-            )
+            fp = generator.GetFingerprint(mol)
             arr = np.zeros((self.atom_pairs_bits,), dtype=np.int8)
             DataStructs.ConvertToNumpyArray(fp, arr)
             fps.append(arr)

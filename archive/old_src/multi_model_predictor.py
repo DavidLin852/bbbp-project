@@ -554,7 +554,7 @@ class MultiModelPredictor:
         if base_estimators is None:
             base_estimators = [
                 ('rf', RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)),
-                ('xgb', XGBClassifier(n_estimators=100, random_state=42, use_label_encoder=False, eval_metric='logloss')),
+                ('xgb', XGBClassifier(n_estimators=100, random_state=42, eval_metric='logloss')),
                 ('lgbm', LGBMClassifier(n_estimators=100, random_state=42))
             ]
 

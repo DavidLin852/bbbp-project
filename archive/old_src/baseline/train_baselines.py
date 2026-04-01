@@ -94,7 +94,6 @@ MODEL_CONFIGS = {
             "eval_metric": "auc",
             "n_jobs": -1,
             "random_state": 42,
-            "use_label_encoder": False
         }
     },
 
