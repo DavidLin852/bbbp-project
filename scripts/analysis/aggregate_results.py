@@ -2,11 +2,13 @@
 """
 Aggregate baseline experiment results.
 
-This script collects results from multiple experiments
-and creates a unified summary table.
+Scans both classification (baselines/) and regression (regression/) directories
+and produces task-specific master tables.
 
 Usage:
-    python scripts/analysis/aggregate_results.py --output_dir artifacts/reports
+    python scripts/analysis/aggregate_results.py --task all
+    python scripts/analysis/aggregate_results.py --task classification
+    python scripts/analysis/aggregate_results.py --task regression
 """
 
 from __future__ import annotations
@@ -18,282 +20,186 @@ from pathlib import Path
 
 import pandas as pd
 
-
-# Add project root to Python path
 project_root = Path(__file__).resolve().parents[2]
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+# ---------------------------------------------------------------------------
+# Field mappings
+# ---------------------------------------------------------------------------
+CLS_FIELDS = [
+    "train_auc", "train_accuracy", "train_f1",
+    "val_auc", "val_accuracy", "val_f1",
+    "test_auc", "test_accuracy", "test_f1",
+]
+
+REG_FIELDS = [
+    "train_mse", "train_rmse", "train_mae", "train_r2",
+    "val_mse", "val_rmse", "val_mae", "val_r2",
+    "test_mse", "test_rmse", "test_mae", "test_r2",
+]
+
 
 def load_comparison_json(json_path: Path) -> dict:
-    """Load comparison.json file."""
-    with open(json_path, 'r') as f:
+    with open(json_path, "r") as f:
         return json.load(f)
 
 
-def extract_result_from_comparison(comparison: dict) -> dict:
-    """
-    Extract individual result from comparison.json.
-
-    Args:
-        comparison: Loaded comparison.json dict
-
-    Returns:
-        Flattened result dict
-    """
+def extract_result(comparison: dict, fields: list[str]) -> list[dict]:
     results = []
-
-    for result in comparison.get('results', []):
+    for r in comparison.get("results", []):
         row = {
-            'model_name': result.get('model_name'),
-            'feature_type': result.get('feature_type'),
-            'train_auc': result.get('train_auc'),
-            'train_accuracy': result.get('train_accuracy'),
-            'train_f1': result.get('train_f1'),
-            'val_auc': result.get('val_auc'),
-            'val_accuracy': result.get('val_accuracy'),
-            'val_f1': result.get('val_f1'),
-            'test_auc': result.get('test_auc'),
-            'test_accuracy': result.get('test_accuracy'),
-            'test_f1': result.get('test_f1'),
+            "model_name": r.get("model_name"),
+            "feature_type": r.get("feature_type"),
         }
+        for f in fields:
+            row[f] = r.get(f)
         results.append(row)
-
     return results
 
 
-def scan_results_directory(base_dir: Path) -> list[dict]:
+def scan_directory(base_dir: Path, task: str) -> list[dict]:
     """
-    Scan results directory for all comparison.json files.
+    Recursively scan for comparison.json files.
 
-    Args:
-        base_dir: Base results directory (e.g., artifacts/models/baselines)
-
-    Returns:
-        List of all result dicts
+    Directory structure:
+      artifacts/models/baselines/seed_N/split/feature/     -> classification
+      artifacts/models/regression/seed_N/split/feature/   -> regression
     """
     all_results = []
+    model_base = base_dir / "models"
+    if not model_base.exists():
+        return all_results
 
-    # Find all comparison.json files
-    comparison_files = list(base_dir.rglob("comparison.json"))
-
-    for comp_file in comparison_files:
-        # Extract metadata from path
-        # Expected: artifacts/models/baselines/seed_{seed}/{split}/{feature}/comparison.json
+    for comp_file in model_base.rglob("comparison.json"):
         parts = comp_file.parts
+        is_regression = "baselines" not in parts
+
+        if task == "classification" and is_regression:
+            continue
+        if task == "regression" and not is_regression:
+            continue
 
         try:
-            # Find the index that contains 'seed_'
-            seed_idx = None
-            for i, part in enumerate(parts):
-                if part.startswith('seed_'):
-                    seed_idx = i
-                    break
-
-            if seed_idx is None:
-                raise ValueError("seed_ component not found in path")
-
-            seed = int(parts[seed_idx].replace('seed_', ''))
-
+            seed_idx = next(i for i, p in enumerate(parts) if p.startswith("seed_"))
+            seed = int(parts[seed_idx].replace("seed_", ""))
             split = parts[seed_idx + 1]
             feature = parts[seed_idx + 2]
-
-        except (ValueError, IndexError):
-            # Path structure doesn't match expected format
+        except (StopIteration, IndexError, ValueError):
             print(f"Warning: Skipping unexpected path: {comp_file}")
             continue
 
-        # Load comparison
         comparison = load_comparison_json(comp_file)
+        fields = REG_FIELDS if is_regression else CLS_FIELDS
+        results = extract_result(comparison, fields)
 
-        # Extract results with metadata
-        results = extract_result_from_comparison(comparison)
-
-        # Add metadata to each result
-        for result in results:
-            result['seed'] = seed
-            result['split_type'] = split
-            result['feature'] = feature
+        for r in results:
+            r["seed"] = seed
+            r["split_type"] = split
+            r["feature"] = feature
+            r["task"] = "regression" if is_regression else "classification"
 
         all_results.extend(results)
 
     return all_results
 
 
-def create_master_table(results: list[dict]) -> pd.DataFrame:
-    """
-    Create master results table.
-
-    Args:
-        results: List of result dicts
-
-    Returns:
-        DataFrame with all results
-    """
+def make_master(results: list[dict], fields: list[str], sort_key: str, sort_asc: bool) -> pd.DataFrame:
     df = pd.DataFrame(results)
-
-    # Reorder columns
-    column_order = [
-        'seed', 'split_type', 'feature', 'model_name',
-        'train_auc', 'train_accuracy', 'train_f1',
-        'val_auc', 'val_accuracy', 'val_f1',
-        'test_auc', 'test_accuracy', 'test_f1',
-    ]
-
-    # Ensure all columns exist
-    for col in column_order:
-        if col not in df.columns:
-            df[col] = None
-
-    df = df[column_order]
-
-    # Sort by seed, split_type, feature, test_auc
-    df = df.sort_values(['seed', 'split_type', 'feature', 'test_auc'], ascending=[True, True, True, False])
-
+    cols = ["seed", "split_type", "feature", "model_name"] + fields
+    for c in cols:
+        if c not in df.columns:
+            df[c] = None
+    df = df[[c for c in cols if c in df.columns]]
+    df = df.sort_values(sort_key, ascending=sort_asc)
     return df
 
 
-def create_summary_by_model(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Create summary grouped by model.
-
-    Args:
-        df: Master results table
-
-    Returns:
-        Summary DataFrame
-    """
-    # Group by model_name and feature
-    summary = df.groupby(['model_name', 'feature']).agg({
-        'test_auc': ['mean', 'std', 'min', 'max', 'count'],
-        'test_f1': ['mean', 'std'],
-    }).round(4)
-
-    # Flatten column names
-    summary.columns = ['_'.join(col).strip() for col in summary.columns.values]
-    summary = summary.reset_index()
-
-    # Reorder by mean test_auc
-    summary = summary.sort_values('test_auc_mean', ascending=False)
-
-    return summary
-
-
-def create_summary_by_feature(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Create summary grouped by feature type.
-
-    Args:
-        df: Master results table
-
-    Returns:
-        Summary DataFrame
-    """
-    # Group by feature and model
-    summary = df.groupby(['feature', 'model_name']).agg({
-        'test_auc': ['mean', 'std'],
-    }).round(4)
-
-    # Flatten column names
-    summary.columns = ['_'.join(col).strip() for col in summary.columns.values]
-    summary = summary.reset_index()
-
-    # Reorder
-    summary = summary.sort_values(['feature', 'test_auc_mean'], ascending=[True, False])
-
-    return summary
+def make_summary(df: pd.DataFrame, agg_metrics: list[str]) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame()
+    agg_dict = {m: ["mean", "std", "count"] for m in agg_metrics}
+    agg = df.groupby(["feature", "model_name"]).agg(agg_dict).round(4)
+    agg.columns = ["_".join(c) for c in agg.columns]
+    agg = agg.reset_index()
+    first_metric = agg_metrics[0]
+    agg = agg.sort_values(f"{first_metric}_mean", ascending=False)
+    return agg
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Aggregate baseline experiment results"
-    )
+    parser = argparse.ArgumentParser(description="Aggregate baseline results")
+    parser.add_argument("--base_dir", type=str, default="artifacts")
+    parser.add_argument("--output_dir", type=str, default="artifacts/reports")
     parser.add_argument(
-        "--results_dir",
-        type=str,
-        default="artifacts/models/baselines",
-        help="Base results directory"
+        "--task", type=str, default="all",
+        choices=["classification", "regression", "all"],
     )
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="artifacts/reports",
-        help="Output directory for aggregated reports"
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=None,
-        help="Filter by seed (default: all seeds)"
-    )
-    parser.add_argument(
-        "--split",
-        type=str,
-        default=None,
-        help="Filter by split type (default: all splits)"
-    )
-    parser.add_argument(
-        "--feature",
-        type=str,
-        default=None,
-        help="Filter by feature type (default: all features)"
-    )
-
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--split", type=str, default=None)
+    parser.add_argument("--feature", type=str, default=None)
     args = parser.parse_args()
 
-    # Setup paths
-    results_dir = Path(args.results_dir)
+    base_dir = Path(args.base_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Scanning results from {results_dir}...")
+    results = scan_directory(base_dir, args.task)
+    print(f"Found {len(results)} results")
 
-    # Scan all results
-    all_results = scan_results_directory(results_dir)
-
-    print(f"Found {len(all_results)} results")
-
-    if len(all_results) == 0:
-        print("No results found!")
+    if not results:
+        print("No results found.")
         return
 
-    # Create master table
-    df = create_master_table(all_results)
+    df_all = pd.DataFrame(results)
 
-    # Apply filters
     if args.seed is not None:
-        df = df[df['seed'] == args.seed]
+        df_all = df_all[df_all["seed"] == args.seed]
     if args.split is not None:
-        df = df[df['split_type'] == args.split]
+        df_all = df_all[df_all["split_type"] == args.split]
     if args.feature is not None:
-        df = df[df['feature'] == args.feature]
+        df_all = df_all[df_all["feature"] == args.feature]
 
-    print(f"Filtered to {len(df)} results")
+    print(f"Filtered to {len(df_all)} results")
 
-    # Save master table
-    master_path = output_dir / "baseline_results_master.csv"
-    df.to_csv(master_path, index=False)
-    print(f"Saved master table to {master_path}")
+    # Classification
+    cls_df = df_all[df_all["task"] == "classification"].copy()
+    if not cls_df.empty:
+        cls_master = make_master(cls_df.to_dict("records"), CLS_FIELDS, "test_auc", False)
+        cls_master.to_csv(output_dir / "cls_results_master.csv", index=False)
 
-    # Create summaries
-    summary_by_model = create_summary_by_model(df)
-    summary_model_path = output_dir / "baseline_summary_by_model.csv"
-    summary_by_model.to_csv(summary_model_path, index=False)
-    print(f"Saved model summary to {summary_model_path}")
+        agg_cls = make_summary(cls_master, ["test_auc", "test_f1"])
+        agg_cls.to_csv(output_dir / "cls_summary_by_model.csv", index=False)
 
-    summary_by_feature = create_summary_by_feature(df)
-    summary_feature_path = output_dir / "baseline_summary_by_feature.csv"
-    summary_by_feature.to_csv(summary_feature_path, index=False)
-    print(f"Saved feature summary to {summary_feature_path}")
+        scaffold_cls = cls_master[cls_master["split_type"] == "scaffold"]
+        scaffold_cls.to_csv(output_dir / "cls_results_scaffold.csv", index=False)
 
-    # Print summary
-    print("\n=== Top Results by Test AUC ===")
-    print(df[['seed', 'split_type', 'feature', 'model_name', 'test_auc', 'test_f1']].head(10).to_string(index=False))
+        agg_scaffold_cls = make_summary(scaffold_cls, ["test_auc", "test_f1"])
+        agg_scaffold_cls.to_csv(output_dir / "cls_benchmark_scaffold.csv", index=False)
 
-    print(f"\n=== Summary by Model (Top 10) ===")
-    print(summary_by_model.head(10).to_string(index=False))
+        print(f"\n=== Classification (scaffold) ===")
+        print(agg_scaffold_cls.head(5).to_string(index=False))
 
-    print("\nDone!")
+    # Regression
+    reg_df = df_all[df_all["task"] == "regression"].copy()
+    if not reg_df.empty:
+        reg_master = make_master(reg_df.to_dict("records"), REG_FIELDS, "test_r2", False)
+        reg_master.to_csv(output_dir / "reg_results_master.csv", index=False)
+
+        agg_reg = make_summary(reg_master, ["test_r2", "test_rmse", "test_mae"])
+        agg_reg.to_csv(output_dir / "reg_summary_by_model.csv", index=False)
+
+        scaffold_reg = reg_master[reg_master["split_type"] == "scaffold"]
+        scaffold_reg.to_csv(output_dir / "reg_results_scaffold.csv", index=False)
+
+        agg_scaffold_reg = make_summary(scaffold_reg, ["test_r2", "test_rmse", "test_mae"])
+        agg_scaffold_reg.to_csv(output_dir / "reg_benchmark_scaffold.csv", index=False)
+
+        print(f"\n=== Regression (scaffold) ===")
+        print(agg_scaffold_reg.head(5).to_string(index=False))
+
+    print(f"\nOutputs in: {output_dir}")
+    print("Done!")
 
 
 if __name__ == "__main__":

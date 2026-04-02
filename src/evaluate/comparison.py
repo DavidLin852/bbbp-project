@@ -11,7 +11,7 @@ from typing import Any
 import json
 import pandas as pd
 
-from ..train.trainer import TrainingResult
+from ..train.trainer import TrainingResult, RegTrainingResult
 
 
 @dataclass
@@ -148,3 +148,54 @@ def compare_models(results: list[TrainingResult]) -> ModelComparison:
         ModelComparison instance
     """
     return ModelComparison(results=results)
+
+
+@dataclass
+class RegModelComparison:
+    """
+    Container for regression model comparison results.
+    """
+
+    results: list[RegTrainingResult]
+
+    def __len__(self):
+        return len(self.results)
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Convert results to DataFrame."""
+        data = [r.to_dict() for r in self.results]
+        return pd.DataFrame(data)
+
+    def sort_by_test_r2(self, ascending: bool = False) -> pd.DataFrame:
+        """Sort models by test R2 (higher is better)."""
+        df = self.to_dataframe()
+        return df.sort_values("test_r2", ascending=ascending)
+
+    def get_best_model(self) -> RegTrainingResult:
+        """Get model with best test R2."""
+        return max(self.results, key=lambda r: r.test_metrics.r2)
+
+    def summary(self) -> dict:
+        """Get summary statistics."""
+        df = self.to_dataframe()
+        return {
+            "n_models": len(self.results),
+            "best_test_r2": float(df["test_r2"].max()),
+            "best_model_name": df.loc[df["test_r2"].idxmax(), "model_name"],
+            "mean_test_r2": float(df["test_r2"].mean()),
+            "std_test_r2": float(df["test_r2"].std()),
+        }
+
+    def save(self, output_path: Path | str):
+        """Save comparison results to JSON."""
+        output_path = Path(output_path)
+        data = {
+            "results": [r.to_dict() for r in self.results],
+            "summary": self.summary(),
+        }
+        output_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def compare_regression_models(results: list[RegTrainingResult]) -> RegModelComparison:
+    """Create regression model comparison from results."""
+    return RegModelComparison(results=results)

@@ -134,7 +134,7 @@ def main():
 
     print(f"Feature shape: train={X_train.shape}, val={X_val.shape}, test={X_test.shape}")
 
-    # Save features
+    # Save features (shared path; label files are task-specific)
     if args.output_dir is None:
         output_dir = P.features / f"seed_{args.seed}" / args.split / args.feature
     else:
@@ -148,7 +148,7 @@ def main():
     np.save(output_dir / "X_val.npy", X_val)
     np.save(output_dir / "X_test.npy", X_test)
 
-    # Save labels
+    # Save labels (task-specific filenames to avoid collision)
     if args.task == "classification":
         y_train = dataset.train[dataset.label_col].to_numpy()
         y_val = dataset.val[dataset.label_col].to_numpy()
@@ -158,9 +158,9 @@ def main():
         y_val = dataset.val["logBB"].to_numpy()
         y_test = dataset.test["logBB"].to_numpy()
 
-    np.save(output_dir / "y_train.npy", y_train)
-    np.save(output_dir / "y_val.npy", y_val)
-    np.save(output_dir / "y_test.npy", y_test)
+    np.save(output_dir / f"y_{args.task}_train.npy", y_train)
+    np.save(output_dir / f"y_{args.task}_val.npy", y_val)
+    np.save(output_dir / f"y_{args.task}_test.npy", y_test)
 
     # Save metadata
     import json

@@ -56,3 +56,51 @@ def generate_report(
     summary_path = output_dir / "summary.json"
     import json
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+
+def generate_reg_report(
+    comparison: "RegModelComparison",
+    output_dir: Path | str = "artifacts/reports",
+):
+    """
+    Generate regression evaluation report.
+
+    Creates:
+    - results_summary.csv: Main results table
+    - results_sorted_by_r2.csv: Ranked by test R2
+    - best_model.txt: Info about best model
+
+    Args:
+        comparison: Regression model comparison results
+        output_dir: Output directory
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Summary table
+    df = comparison.to_dataframe()
+    summary_path = output_dir / "results_summary.csv"
+    df.to_csv(summary_path, index=False)
+
+    # Sorted by test R2
+    df_sorted = comparison.sort_by_test_r2(ascending=False)
+    sorted_path = output_dir / "results_sorted_by_r2.csv"
+    df_sorted.to_csv(sorted_path, index=False)
+
+    # Best model info
+    best = comparison.get_best_model()
+    best_path = output_dir / "best_model.txt"
+    best_path.write_text(
+        f"Best Model: {best.model_name}\n"
+        f"Feature Type: {best.feature_type}\n"
+        f"Test R2: {best.test_metrics.r2:.4f}\n"
+        f"Test RMSE: {best.test_metrics.rmse:.4f}\n"
+        f"Test MAE: {best.test_metrics.mae:.4f}\n",
+        encoding="utf-8",
+    )
+
+    # Summary statistics
+    summary = comparison.summary()
+    summary_path = output_dir / "summary.json"
+    import json
+    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")

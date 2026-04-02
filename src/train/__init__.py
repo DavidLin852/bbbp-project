@@ -7,6 +7,6 @@ This module handles:
 - Result logging
 """
 
-from .trainer import Trainer, TrainingConfig, train_multiple_models
+from .trainer import Trainer, TrainingConfig, train_multiple_models, train_multiple_regression_models
 
-__all__ = ["Trainer", "TrainingConfig", "train_multiple_models"]
+__all__ = ["Trainer", "TrainingConfig", "train_multiple_models", "train_multiple_regression_models"]

@@ -3,8 +3,10 @@ import numpy as np
 from dataclasses import dataclass
 from sklearn.metrics import (
     roc_auc_score, average_precision_score,
-    precision_recall_fscore_support, accuracy_score, confusion_matrix
+    precision_recall_fscore_support, accuracy_score, confusion_matrix,
+    mean_squared_error, mean_absolute_error, r2_score,
 )
+
 
 @dataclass(frozen=True)
 class ClsMetrics:
@@ -18,6 +20,7 @@ class ClsMetrics:
     fp: int
     fn: int
     tp: int
+
 
 def classification_metrics(y_true: np.ndarray, y_prob: np.ndarray, threshold: float = 0.5) -> ClsMetrics:
     y_true = y_true.astype(int)
@@ -34,4 +37,31 @@ def classification_metrics(y_true: np.ndarray, y_prob: np.ndarray, threshold: fl
         auc=float(auc), auprc=float(auprc), accuracy=float(acc),
         precision_pos=precision_pos, recall_pos=recall_pos, f1_pos=f1_pos,
         tn=int(tn), fp=int(fp), fn=int(fn), tp=int(tp)
+    )
+
+
+@dataclass(frozen=True)
+class RegMetrics:
+    """Metrics for regression tasks."""
+    mse: float
+    rmse: float
+    mae: float
+    r2: float
+
+
+def regression_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> RegMetrics:
+    """Compute regression metrics."""
+    y_true = np.asarray(y_true).flatten()
+    y_pred = np.asarray(y_pred).flatten()
+
+    mse = mean_squared_error(y_true, y_pred)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(y_true, y_pred)
+    r2 = r2_score(y_true, y_pred)
+
+    return RegMetrics(
+        mse=float(mse),
+        rmse=float(rmse),
+        mae=float(mae),
+        r2=float(r2),
     )

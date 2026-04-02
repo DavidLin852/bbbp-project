@@ -21,16 +21,18 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import (
     RandomForestClassifier,
+    RandomForestRegressor,
     GradientBoostingClassifier,
     AdaBoostClassifier,
     ExtraTreesClassifier,
 )
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.naive_bayes import GaussianNB, BernoulliNB
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.svm import SVC
-from xgboost import XGBClassifier
-from lightgbm import LGBMClassifier
+from sklearn.svm import SVR
+from xgboost import XGBClassifier, XGBRegressor
+from lightgbm import LGBMClassifier, LGBMRegressor
 
 
 @dataclass
@@ -68,6 +70,26 @@ class ModelConfig:
     lr_c: float = 1.0
     lr_max_iter: int = 1000
 
+    # Random Forest Regressor
+    rf_reg_n_estimators: int = 500
+
+    # XGBoost Regressor
+    xgb_reg_n_estimators: int = 1000
+    xgb_reg_max_depth: int = 6
+    xgb_reg_learning_rate: float = 0.05
+
+    # LightGBM Regressor
+    lgbm_reg_n_estimators: int = 1500
+    lgbm_reg_max_depth: int = -1
+    lgbm_reg_learning_rate: float = 0.03
+    lgbm_reg_num_leaves: int = 64
+
+    # KNN Regressor
+    knn_reg_n_neighbors: int = 5
+
+    # Ridge
+    ridge_alpha: float = 1.0
+
     # Random seed
     random_state: int = 42
     n_jobs: int = -1
@@ -84,7 +106,8 @@ class BaselineModel:
     def __init__(
         self,
         model_type: Literal[
-            "rf", "xgb", "lgbm", "svm", "knn", "lr", "nb", "gb", "ada", "etc"
+            "rf", "xgb", "lgbm", "svm", "knn", "lr", "nb", "gb", "ada", "etc",
+            "rf_reg", "xgb_reg", "lgbm_reg", "svm_reg", "ridge", "knn_reg",
         ],
         config: ModelConfig | None = None,
     ):
@@ -174,6 +197,49 @@ class BaselineModel:
                 n_jobs=cfg.n_jobs,
                 random_state=cfg.random_state,
             )
+        elif self.model_type == "rf_reg":
+            return RandomForestRegressor(
+                n_estimators=cfg.rf_reg_n_estimators,
+                max_depth=cfg.rf_max_depth,
+                min_samples_split=cfg.rf_min_samples_split,
+                n_jobs=cfg.n_jobs,
+                random_state=cfg.random_state,
+            )
+        elif self.model_type == "xgb_reg":
+            return XGBRegressor(
+                n_estimators=cfg.xgb_reg_n_estimators,
+                max_depth=cfg.xgb_reg_max_depth,
+                learning_rate=cfg.xgb_reg_learning_rate,
+                objective="reg:squarederror",
+                n_jobs=cfg.n_jobs,
+                random_state=cfg.random_state,
+            )
+        elif self.model_type == "lgbm_reg":
+            return LGBMRegressor(
+                n_estimators=cfg.lgbm_reg_n_estimators,
+                max_depth=cfg.lgbm_reg_max_depth,
+                learning_rate=cfg.lgbm_reg_learning_rate,
+                num_leaves=cfg.lgbm_reg_num_leaves,
+                objective="regression",
+                n_jobs=cfg.n_jobs,
+                random_state=cfg.random_state,
+                verbose=-1,
+            )
+        elif self.model_type == "svm_reg":
+            return SVR(
+                kernel="rbf",
+                C=cfg.svm_c,
+            )
+        elif self.model_type == "ridge":
+            return Ridge(
+                alpha=cfg.ridge_alpha,
+                random_state=cfg.random_state,
+            )
+        elif self.model_type == "knn_reg":
+            return KNeighborsRegressor(
+                n_neighbors=cfg.knn_reg_n_neighbors,
+                n_jobs=cfg.n_jobs,
+            )
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
 
@@ -204,10 +270,8 @@ class BaselineModel:
 
         # LightGBM requires float32; wrap in DataFrame so sklearn's
         # feature-name check stays consistent with predict.
-        if self.model_type == "lgbm":
+        if self.model_type.startswith("lgbm"):
             X = self._lgbm_wrap(X.astype(np.float32))
-        else:
-            pass
 
         self.model.fit(X, y)
         return self
@@ -224,14 +288,14 @@ class BaselineModel:
         """
         X = self._to_numpy(X)
 
-        if self.model_type == "lgbm":
+        if self.model_type.startswith("lgbm"):
             X = self._lgbm_wrap(X.astype(np.float32))
 
         return self.model.predict_proba(X)
 
     def predict(self, X):
         """
-        Predict class labels.
+        Predict class labels or continuous values.
 
         Args:
             X: Feature matrix (numpy array or sparse matrix)
@@ -241,7 +305,7 @@ class BaselineModel:
         """
         X = self._to_numpy(X)
 
-        if self.model_type == "lgbm":
+        if self.model_type.startswith("lgbm"):
             X = self._lgbm_wrap(X.astype(np.float32))
 
         return self.model.predict(X)

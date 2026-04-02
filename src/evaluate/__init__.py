@@ -7,7 +7,11 @@ This module handles:
 - Generating evaluation reports
 """
 
-from .comparison import ModelComparison, compare_models
-from .report import generate_report
+from .comparison import ModelComparison, compare_models, RegModelComparison, compare_regression_models
+from .report import generate_report, generate_reg_report
 
-__all__ = ["ModelComparison", "compare_models", "generate_report"]
+__all__ = [
+    "ModelComparison", "compare_models",
+    "RegModelComparison", "compare_regression_models",
+    "generate_report", "generate_reg_report",
+]

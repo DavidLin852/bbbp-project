@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 """
-Train Baseline Models
+Train Baseline Regression Models
 
-This script trains baseline ML models on precomputed features.
+This script trains baseline regression models on precomputed features.
 
 Usage:
-    python scripts/baseline/03_train_baselines.py --seed 0 --split scaffold --feature morgan --models rf,xgb,lgbm
+    python scripts/baseline/04_train_baselines_reg.py --seed 0 --feature morgan --models rf_reg
 """
 
 from __future__ import annotations
@@ -23,13 +23,13 @@ if str(project_root) not in sys.path:
 
 from src.config import Paths
 from src.models import ModelFactory
-from src.train import Trainer, train_multiple_models
-from src.evaluate import ModelComparison, generate_report
+from src.train import train_multiple_regression_models
+from src.evaluate import RegModelComparison, compare_regression_models, generate_reg_report
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Train baseline ML models"
+        description="Train baseline regression models"
     )
     parser.add_argument(
         "--seed",
@@ -45,13 +45,6 @@ def main():
         help="Split type"
     )
     parser.add_argument(
-        "--task",
-        type=str,
-        default="classification",
-        choices=["classification", "regression"],
-        help="Task type"
-    )
-    parser.add_argument(
         "--feature",
         type=str,
         default="morgan",
@@ -60,8 +53,8 @@ def main():
     parser.add_argument(
         "--models",
         type=str,
-        default="rf,xgb,lgbm",
-        help="Comma-separated list of models (e.g., 'rf,xgb,lgbm')"
+        default="rf_reg",
+        help="Comma-separated list of models (e.g., 'rf_reg')"
     )
     parser.add_argument(
         "--feature_dir",
@@ -73,7 +66,7 @@ def main():
         "--output_dir",
         type=str,
         default=None,
-        help="Output directory (default: artifacts/models/baselines/seed_{seed}/{split}/{feature})"
+        help="Output directory (default: artifacts/models/regression/seed_{seed}/{split}/{feature})"
     )
 
     args = parser.parse_args()
@@ -95,9 +88,9 @@ def main():
     X_train = np.load(feature_dir / "X_train.npy")
     X_val = np.load(feature_dir / "X_val.npy")
     X_test = np.load(feature_dir / "X_test.npy")
-    y_train = np.load(feature_dir / f"y_{args.task}_train.npy")
-    y_val = np.load(feature_dir / f"y_{args.task}_val.npy")
-    y_test = np.load(feature_dir / f"y_{args.task}_test.npy")
+    y_train = np.load(feature_dir / "y_regression_train.npy")
+    y_val = np.load(feature_dir / "y_regression_val.npy")
+    y_test = np.load(feature_dir / "y_regression_test.npy")
 
     print(f"Data shapes:")
     print(f"  Train: {X_train.shape}")
@@ -111,7 +104,7 @@ def main():
 
     # Setup output directory
     if args.output_dir is None:
-        output_dir = P.models / "baselines" / f"seed_{args.seed}" / args.split / args.feature
+        output_dir = P.models / "regression" / f"seed_{args.seed}" / args.split / args.feature
     else:
         output_dir = Path(args.output_dir)
 
@@ -119,7 +112,7 @@ def main():
 
     # Train models
     print(f"\nTraining {len(models)} models...")
-    results = train_multiple_models(
+    results = train_multiple_regression_models(
         models=models,
         X_train=X_train,
         y_train=y_train,
@@ -132,19 +125,19 @@ def main():
     )
 
     # Create comparison
-    comparison = ModelComparison(results=results)
+    comparison = compare_regression_models(results=results)
 
     # Print results
     print("\nResults:")
     df = comparison.to_dataframe()
-    print(df[["model_name", "val_auc", "test_auc", "test_f1"]])
+    print(df[["model_name", "val_r2", "test_r2", "test_rmse", "test_mae"]])
 
     # Save comparison
     comparison.save(output_dir / "comparison.json")
 
     # Generate report
     report_dir = output_dir / "reports"
-    generate_report(comparison, output_dir=report_dir)
+    generate_reg_report(comparison, output_dir=report_dir)
 
     print(f"\nResults saved to {output_dir}")
     print("Done!")

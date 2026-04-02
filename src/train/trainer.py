@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from ..models import BaselineModel
-from ..utils.metrics import classification_metrics, ClsMetrics
+from ..utils.metrics import classification_metrics, ClsMetrics, regression_metrics, RegMetrics
 
 
 @dataclass
@@ -49,6 +49,36 @@ class TrainingResult:
             "test_auc": self.test_metrics.auc,
             "test_accuracy": self.test_metrics.accuracy,
             "test_f1": self.test_metrics.f1_pos,
+        }
+
+
+@dataclass
+class RegTrainingResult:
+    """Container for regression training results."""
+    model_name: str
+    feature_type: str
+    train_metrics: RegMetrics
+    val_metrics: RegMetrics
+    test_metrics: RegMetrics
+    model: Any | None = None
+
+    def to_dict(self):
+        """Convert to dictionary."""
+        return {
+            "model_name": self.model_name,
+            "feature_type": self.feature_type,
+            "train_mse": self.train_metrics.mse,
+            "train_rmse": self.train_metrics.rmse,
+            "train_mae": self.train_metrics.mae,
+            "train_r2": self.train_metrics.r2,
+            "val_mse": self.val_metrics.mse,
+            "val_rmse": self.val_metrics.rmse,
+            "val_mae": self.val_metrics.mae,
+            "val_r2": self.val_metrics.r2,
+            "test_mse": self.test_metrics.mse,
+            "test_rmse": self.test_metrics.rmse,
+            "test_mae": self.test_metrics.mae,
+            "test_r2": self.test_metrics.r2,
         }
 
 
@@ -227,3 +257,63 @@ def train_multiple_models(
         results.append(result)
 
     return results
+
+
+def train_multiple_regression_models(
+    models: list[BaselineModel],
+    X_train,
+    y_train,
+    X_val,
+    y_val,
+    X_test,
+    y_test,
+    feature_type: str,
+    output_dir: Path | str = "artifacts/models",
+) -> list[RegTrainingResult]:
+    """
+    Train multiple regression models and collect results.
+
+    Args:
+        models: List of regression models to train
+        X_train: Training features
+        y_train: Training labels (continuous)
+        X_val: Validation features
+        y_val: Validation labels
+        X_test: Test features
+        y_test: Test labels
+        feature_type: Name of feature type
+        output_dir: Output directory
+
+    Returns:
+        List of RegTrainingResult objects
+    """
+    results: list[RegTrainingResult] = []
+
+    for model in models:
+        # Train model
+        model.fit(X_train, y_train)
+
+        # Predictions (continuous values, not probabilities)
+        train_preds = model.predict(X_train)
+        val_preds = model.predict(X_val)
+        test_preds = model.predict(X_test)
+
+        # Compute regression metrics
+        train_metrics = regression_metrics(y_train, train_preds)
+        val_metrics = regression_metrics(y_val, val_preds)
+        test_metrics = regression_metrics(y_test, test_preds)
+
+        # Create result
+        result = RegTrainingResult(
+            model_name=model.model_type,
+            feature_type=feature_type,
+            train_metrics=train_metrics,
+            val_metrics=val_metrics,
+            test_metrics=test_metrics,
+            model=model,
+        )
+
+        results.append(result)
+
+    return results
+
