@@ -1,65 +1,116 @@
 # ============================================================
-# BBB Research Modules - Optional Dependencies
+# BBB Research Modules - Dependencies (PyTorch + GNN)
 # ============================================================
 # Installation:
 #   pip install -r requirements-research.txt
 #
-# Or install everything at once:
+# Or install in steps:
 #   pip install -r requirements-baseline.txt
 #   pip install -r requirements-research.txt
 # ============================================================
 #
-# This file contains dependencies for experimental and research
-# features that are NOT part of the working baseline pipeline.
-#
-# Use this for:
-#   - VAE/GAN molecule generation
-#   - Transformer models (MolBERT, Graphormer)
-#   - GNN models (GAT, GCN)
+# This file contains dependencies for GNN research including:
+#   - PyTorch + CUDA support
+#   - PyTorch Geometric (GNN library)
 #   - Streamlit web interface
-#   - Advanced visualizations
 #
-# WARNING: These dependencies are large and may require additional
-# system-level setup (e.g., CUDA for PyTorch).
+# WARNING: PyTorch Geometric installation is platform-specific.
+#   See the INSTALLATION NOTES section below.
+#
 # ============================================================
-
-# Deep learning frameworks (for GNN, VAE, GAN models)
-# ================================
-torch>=2.0.0
-torchvision>=0.15.0
-torch-geometric>=2.4.0
-torch-scatter>=2.1.0
-torch-sparse>=0.6.0
-
-# Web framework (for Streamlit app)
-# ================================
-streamlit>=1.29.0
-plotly>=5.18.0
-
+# QUICK START
+# ============================================================
+#
+# For CFFF cluster (CUDA 11.8):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#   pip install torch-geometric pyg-lib torch-scatter torch-sparse torch-cluster torch-spline-conv -f https://data.pyg.org/whl/torch-2.1.2+cu118.html
+#   pip install torch-geometric
+#
+# For CFFF cluster (CUDA 12.1):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#   pip install torch-geometric pyg-lib torch-scatter torch-sparse torch-cluster torch-spline-conv -f https://data.pyg.org/whl/torch-2.1.2+cu121.html
+#   pip install torch-geometric
+#
+# For local (CPU only):
+#   pip install torch torchvision
+#   pip install torch-geometric
+#
 # ============================================================
 # INSTALLATION NOTES
 # ============================================================
 #
 # PyTorch installation:
-#   For CPU-only: pip install torch torchvision
-#   For CUDA 11.8: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-#   For CUDA 12.1: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#   - Always install torch + torchvision FIRST before torch-geometric
+#   - Choose the CUDA version that matches your cluster's driver
+#   - On CFFF, check with: nvidia-smi
 #
-# PyTorch Geometric installation:
-#   Must match PyTorch version. See:
-#   https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html
+# PyTorch Geometric:
+#   - Version must match PyTorch version exactly
+#   - torch-scatter, torch-sparse, torch-cluster, torch-spline-conv are optional
+#     but required for full GCN/GIN/GAT support
+#   - Pre-built wheels available at: https://data.pyg.org/whl/
+#   - If pre-built wheels are unavailable, compile from source
 #
-# Example for PyTorch 2.1.2 + CUDA 11.8:
-#   pip install torch-geometric
-#   pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.1.2+cu118.html
+# Version compatibility (check https://pytorch-geometric.readthedocs.io/):
+#   PyG >= 2.4 supports PyTorch >= 2.0
 #
 # ============================================================
-# BASELINE DEPENDENCIES
+
 # ============================================================
-#
-# Before installing research dependencies, ensure baseline
-# dependencies are installed:
-#
+# PART 1: Core baseline dependencies (required)
+# ============================================================
+# Install requirements-baseline.txt first:
 #   pip install -r requirements-baseline.txt
+
+# ============================================================
+# PART 2: PyTorch with CUDA support
+# ============================================================
+# Choose ONE of the following blocks based on your CUDA version:
+
+# --- CUDA 11.8 (common on CFFF clusters) ---
+# torch>=2.0.0
+# torchvision>=0.15.0
+
+# --- CUDA 12.1 ---
+# torch>=2.0.0
+# torchvision>=0.15.0
+
+# ============================================================
+# PART 3: PyTorch Geometric (GNN library)
+# ============================================================
+# Core library (required for GCN/GIN/GAT models)
+torch-geometric>=2.4.0
+
+# Optional extension packages (recommended for full functionality):
+# These provide optimized sparse matrix operations for GNN message passing.
+# Pre-built wheels available at: https://data.pyg.org/whl/
+# torch-scatter>=2.1.0
+# torch-sparse>=0.6.0
+# torch-cluster>=1.6.0
+# torch-spline-conv>=1.2.0
+# pyg-lib>=0.4.0
+
+# ============================================================
+# PART 4: Streamlit web interface (optional)
+# ============================================================
+streamlit>=1.29.0
+plotly>=5.18.0
+
+# ============================================================
+# INSTALLATION COMMAND FOR CFFF (CUDA 11.8)
+# ============================================================
+# Run these commands IN ORDER on a CFFF GPU node:
+#
+#   # 1. PyTorch with CUDA 11.8
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#
+#   # 2. PyG core (no compiled extensions first, for quick testing)
+#   pip install torch-geometric
+#
+#   # 3. PyG compiled extensions (optional but recommended)
+#   #    Replace VERSION with your PyTorch version (e.g., 2.1.2)
+#   VERSION=$(python -c "import torch; print(torch.__version__)")
+#   CUDA=cu118
+#   pip install torch-scatter torch-sparse torch-cluster torch-spline-conv -f https://data.pyg.org/whl/torch-${VERSION}+${CUDA}.html
 #
 # ============================================================
