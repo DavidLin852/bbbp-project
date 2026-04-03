@@ -152,11 +152,11 @@ def evaluate(
         for batch in loader:
             batch = batch.to(device)
             h = model.backbone(batch)
-            y = batch.y.squeeze()  # On GPU
+            y = batch.y.view(-1)  # Flatten to 1D
             pred = (
-                torch.sigmoid(model.head(h)).squeeze()
+                torch.sigmoid(model.head(h)).view(-1)
                 if task == "classification"
-                else model.head(h).squeeze()
+                else model.head(h).view(-1)
             )
 
             # Move predictions and labels back to CPU for sklearn
@@ -396,7 +396,6 @@ def train_gnn(
 
         result = GNNTrainingResult(
             model_name=model_type,
-            feature_type="graph",
             seed=seed,
             task=task,
             train_auc=float(train_auc),
@@ -422,7 +421,6 @@ def train_gnn(
 
         result = GNNRegressionResult(
             model_name=model_type,
-            feature_type="graph",
             seed=seed,
             task=task,
             train_r2=float(train_r2),

@@ -71,6 +71,32 @@ python scripts/analysis/generate_benchmark_summary.py
 
 ---
 
+## Project Status
+
+**Baseline Phase: COMPLETE ✅**
+
+All three representation categories have been implemented and benchmarked:
+
+1. ✅ **Classical Baselines** - Hand-crafted molecular fingerprints and descriptors
+   - Best: Random Forest + Morgan (AUC: 0.9401 ± 0.0454)
+   - Status: Fully benchmarked with 3 seeds
+
+2. ✅ **Graph Baselines** - Graph Neural Networks (GCN, GIN, GAT)
+   - Best Classification: GAT (AUC: 0.9356 ± 0.0314)
+   - Best Regression: GIN (R²: 0.7062 ± 0.0473)
+   - Status: Fully benchmarked with 5 seeds
+
+3. ✅ **Sequence Baselines** - SMILES Transformer
+   - Classification: AUC 0.8822 ± 0.0756
+   - Regression: R² 0.1911 ± 0.2014
+   - Status: Fully benchmarked with 5 seeds
+
+**Next Phase:** ZINC22 Pretraining
+
+See `docs/CURRENT_BASELINE_SUMMARY.md` for detailed results and `docs/USAGE_GUIDE.md` for complete usage instructions.
+
+---
+
 ## Pipeline Overview
 
 ### Working Baseline Pipeline
@@ -428,7 +454,9 @@ This project is for research and educational purposes.
 
 ---
 
-**Last Updated:** 2026-03-27
-**Project Status:** Baseline established ✅
+**Last Updated:** 2026-04-03
+**Project Status:** Baseline Phase Complete ✅
+**Next Phase:** ZINC22 Pretraining
 **Python Version:** 3.10+
-**Best Baseline:** Random Forest + Morgan (AUC: 0.9401 ± 0.0454)
+**Best Classification:** Random Forest + Morgan (AUC: 0.9401 ± 0.0454)
+**Best Regression:** GIN + Molecular Graph (R²: 0.7062 ± 0.0473)

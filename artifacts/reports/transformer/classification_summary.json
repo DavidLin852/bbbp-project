@@ -1,0 +1,15 @@
+{
+  "task": "classification",
+  "n_seeds": 5,
+  "split_type": "scaffold",
+  "auc_mean": 0.8820180036244419,
+  "auc_std": 0.07678742644675982,
+  "f1_mean": 0.9012698878959384,
+  "f1_std": 0.02086094546789725,
+  "accuracy_mean": 0.8552783283973865,
+  "accuracy_std": 0.03462959442283497,
+  "precision_mean": 0.918372562480457,
+  "precision_std": 0.04678402678394729,
+  "recall_mean": 0.8880620681285285,
+  "recall_std": 0.04835206070112955
+}
