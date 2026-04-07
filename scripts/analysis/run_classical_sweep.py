@@ -129,7 +129,7 @@ def main():
             for task in tasks:
                 for split in ["scaffold"]:
                     cmd = [
-                        "python", str(BASELINE / "01_preprocess_b3db.py"),
+                        str(BASELINE / "01_preprocess_b3db.py"),
                         "--seed", str(seed),
                         "--split_type", split,
                         "--task", task,
@@ -147,7 +147,7 @@ def main():
             for task in tasks:
                 for feature in features:
                     cmd = [
-                        "python", str(BASELINE / "02_compute_features.py"),
+                        str(BASELINE / "02_compute_features.py"),
                         "--seed", str(seed),
                         "--split", "scaffold",
                         "--task", task,
@@ -165,7 +165,7 @@ def main():
         for seed in seeds:
             for feature in features:
                 cmd = [
-                    "python", str(BASELINE / "04_train_all.py"),
+                    str(BASELINE / "04_train_all.py"),
                     "--seed", str(seed),
                     "--task", "classification",
                     "--feature", feature,
@@ -181,7 +181,7 @@ def main():
         for seed in seeds:
             for feature in features:
                 cmd = [
-                    "python", str(BASELINE / "04_train_all.py"),
+                    str(BASELINE / "04_train_all.py"),
                     "--seed", str(seed),
                     "--task", "regression",
                     "--feature", feature,
@@ -194,7 +194,7 @@ def main():
     # Stage 4: Aggregate and report
     print("\n[Stage 4/4] Aggregating results...")
     agg_cmd = [
-        "python", str(ANALYSIS / "aggregate_results.py"),
+        str(ANALYSIS / "aggregate_results.py"),
         "--task", "all",
     ]
     run(agg_cmd, "aggregate_results.py", args.dry_run, capture=False)
