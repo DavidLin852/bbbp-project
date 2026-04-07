@@ -24,11 +24,9 @@ from __future__ import annotations
 import gzip
 import pickle
 from pathlib import Path
-from typing import Literal, Optional, List, Tuple, Iterator
+from typing import Literal, Optional, List
 import numpy as np
 from tqdm import tqdm
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import multiprocessing as mp
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -100,10 +98,11 @@ class ZINC22Dataset(Dataset):
 
     def _build_index(self) -> List[str]:
         """
-        Build index of all SMILES strings.
+        Build index of SMILES using reservoir sampling (Algorithm R).
 
-        Reads ALL files evenly, then subsamples. This ensures uniform coverage
-        across the entire ZINC22 dataset. Uses caching to avoid re-reading files.
+        Streams through all files and maintains exactly num_samples molecules
+        in memory. Works with billions of SMILES without OOM.
+        Uses caching to avoid re-reading files on subsequent runs.
         """
         cache_file = self.cache_dir / f"smiles_index_{self.num_samples}_{self.seed}.pkl"
 
@@ -113,86 +112,56 @@ class ZINC22Dataset(Dataset):
             with open(cache_file, "rb") as f:
                 return pickle.load(f)
 
-        # Read ALL SMILES from files using parallel processing
-        print(f"Reading ALL {len(self.smi_files)} files with parallel workers...")
-        all_smiles = self._read_files_parallel()
-        print(f"Loaded {len(all_smiles):,} total molecules from ZINC22")
+        # Reservoir sampling: keep exactly num_samples items in memory
+        k = self.num_samples
+        rng = np.random.RandomState(self.seed)
 
-        # Shuffle if requested
-        if self.shuffle:
-            rng = np.random.RandomState(self.seed)
-            rng.shuffle(all_smiles)
+        # Pre-generate random thresholds for reservoir sampling
+        # Using Algorithm R variant for efficiency
+        reservoir = []
+        total_seen = 0
 
-        # Limit to num_samples (after shuffle for random selection)
-        all_smiles = all_smiles[:self.num_samples]
-        print(f"Selected {len(all_smiles):,} molecules for pretraining")
+        print(f"Reservoir sampling {k:,} molecules from {len(self.smi_files)} files...")
+        with tqdm(total=None, desc="Sampling molecules") as pbar:
+            for smi_file in self.smi_files:
+                try:
+                    with gzip.open(smi_file, "rt", encoding="utf-8") as f:
+                        for line in f:
+                            total_seen += 1
+                            parts = line.strip().split("\t")
+                            if len(parts) >= 1:
+                                smiles = parts[0].strip()
+                                if not _is_valid_smiles_fast(smiles):
+                                    continue
 
-        # Cache for next time
+                                if len(reservoir) < k:
+                                    # Fill reservoir
+                                    reservoir.append(smiles)
+                                else:
+                                    # Reservoir sampling: replace with probability k/total_seen
+                                    j = rng.randint(0, total_seen)
+                                    if j < k:
+                                        reservoir[j] = smiles
+
+                            if total_seen % 100000 == 0:
+                                pbar.set_postfix({
+                                    "seen": f"{total_seen:,}",
+                                    "in_reservoir": len(reservoir)
+                                })
+                except Exception as e:
+                    print(f"Warning: Error reading {smi_file}: {e}")
+                    continue
+
+        print(f"Sampled {len(reservoir):,} unique molecules from {total_seen:,} total lines")
+
+        # Shuffle reservoir
+        rng.shuffle(reservoir)
+
+        # Cache
         with open(cache_file, "wb") as f:
-            pickle.dump(all_smiles, f)
+            pickle.dump(reservoir, f)
 
-        return all_smiles
-
-    def _read_files_parallel(self) -> List[str]:
-        """Read multiple gz files in parallel using ProcessPoolExecutor."""
-        # Read ALL files fully, then subsample. This ensures uniform coverage
-        # across the entire ZINC22 dataset rather than over-sampling early files.
-        # For 50M samples from 1414 files, we need to read all files evenly.
-        all_smiles = []
-        num_workers = min(mp.cpu_count(), len(self.smi_files), 32)  # Cap workers
-
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            # Submit ALL files (no early truncation)
-            futures = {
-                executor.submit(_read_single_file, smi_file, max_samples=None): smi_file
-                for smi_file in self.smi_files
-            }
-
-            # Collect results with progress bar
-            with tqdm(total=len(futures), desc="Reading ZINC22 files") as pbar:
-                for future in as_completed(futures):
-                    smi_file = futures[future]
-                    try:
-                        smiles_list = future.result()
-                        all_smiles.extend(smiles_list)
-                        pbar.set_postfix({"collected": f"{len(all_smiles):,}"})
-                    except Exception as e:
-                        print(f"Warning: Error reading {smi_file}: {e}")
-                    finally:
-                        pbar.update(1)
-
-        return all_smiles
-
-
-def _read_single_file(smi_file: Path, max_samples: Optional[int] = None) -> List[str]:
-    """
-    Read a single .smi.gz file and extract SMILES.
-
-    This function is designed to be called in a separate process.
-    Fast basic validation only - no RDKit validation for speed.
-
-    Args:
-        smi_file: Path to the .smi.gz file
-        max_samples: Maximum samples to read. None = read all lines.
-    """
-    smiles_list = []
-
-    try:
-        with gzip.open(smi_file, "rt", encoding="utf-8") as f:
-            for line in f:
-                if max_samples is not None and len(smiles_list) >= max_samples:
-                    break
-
-                parts = line.strip().split("\t")
-                if len(parts) >= 1:
-                    smiles = parts[0].strip()
-                    # Fast basic validation only
-                    if _is_valid_smiles_fast(smiles):
-                        smiles_list.append(smiles)
-    except Exception:
-        pass
-
-    return all_smiles
+        return reservoir
 
     @staticmethod
     def _is_valid_smiles(smiles: str) -> bool:
@@ -231,18 +200,12 @@ def _is_valid_smiles_fast(smiles: str) -> bool:
     - Not empty or whitespace only
 
     This is ~100x faster than RDKit validation.
-    Invalid SMILES will be filtered out during first training epoch
-    if needed, but most ZINC22 SMILES are valid.
     """
     if not smiles or len(smiles.strip()) == 0:
         return False
-
-    # Length check
     if len(smiles) < 1 or len(smiles) > 200:
         return False
-
     try:
-        # Quick check: all characters should be valid SMILES characters
         for char in smiles:
             if char.isalpha() or char.isdigit() or char in "()=#+-@.[].* ":
                 continue

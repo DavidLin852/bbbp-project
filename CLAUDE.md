@@ -15,7 +15,7 @@ scripts/baseline/
 └── 03_train_baselines.py    # Train RF/XGB/LGBM models
 ```
 
-**Best performance:** Random Forest + Morgan fingerprints (AUC: 0.9401 ± 0.0454)
+**Best performance:** MACCS + LightGBM (Classification AUC: 0.9535 ± 0.0388), GIN (Regression R²: 0.7062 ± 0.0473)
 
 ### Quick Start
 
@@ -33,7 +33,7 @@ python scripts/baseline/03_train_baselines.py --seed 0 --feature morgan --models
 ### Full Benchmark
 
 ```bash
-python scripts/analysis/run_baseline_matrix.py      # 18 experiments
+python scripts/analysis/run_baseline_matrix.py      # Full classical benchmark
 python scripts/analysis/aggregate_results.py        # Aggregate results
 python scripts/analysis/generate_benchmark_summary.py  # Summary report
 ```
@@ -83,8 +83,8 @@ These modules are preserved for future research but **not part of the current ma
 |--------|------|--------|---------|
 | VAE | `src/vae/` | Architecture ready | Molecule generation |
 | GAN | `src/gan/` | Architecture ready | Molecule generation |
-| Transformer | `src/transformer/` | Future | MolBERT, Graphormer |
-| Pretrain | `src/pretrain/` | Future | ZINC22 pre-training |
+| Transformer | `src/transformer/` | Benchmarked | SMILES Transformer baseline |
+| Pretrain | `src/pretrain/` | In progress | ZINC22 pre-training |
 | Path Prediction | `src/path_prediction/` | Experimental | Transport mechanism |
 | Explainability | `src/explain/` | Future | Model interpretation |
 
@@ -237,19 +237,19 @@ rsync -avz user@cluster:/path/to/project/artifacts/ ./artifacts/
 
 Each feature family is an **independent** baseline input. Do NOT concatenate feature families for the formal baseline suite.
 
-### Implemented in Current Pipeline
+### Benchmarked Features
 
 | Feature | Dimension | CLI Flag | Status |
 |---------|-----------|----------|--------|
-| Morgan | 2048 | `morgan` | ✅ Working — benchmarked |
-| Descriptors (basic) | 13 | `descriptors_basic` | ✅ Working — benchmarked |
+| Morgan | 2048 | `morgan` | ✅ Benchmarked (classification + regression) |
+| MACCS | 167 | `maccs` | ✅ Benchmarked (classification + regression) |
+| FP2 | 2048 | `fp2` | ✅ Benchmarked (classification + regression) |
+| Descriptors (basic) | 13 | `descriptors_basic` | ✅ Benchmarked (classification + regression) |
 
-### Available in Code (Extended Baseline — Not Yet Run)
+### Implemented but Not Yet Benchmarked
 
 | Feature | Dimension | CLI Flag | Status |
 |---------|-----------|----------|--------|
-| MACCS | 167 | `maccs` | ⚙️ Implemented but not benchmarked |
-| FP2 | 2048 | `fp2` | ⚙️ Implemented but not benchmarked |
 | AtomPairs | 1024 | `atom_pairs` | ⚙️ Implemented but not benchmarked |
 | Descriptors (extended) | 30 | `descriptors_extended` | ⚙️ Implemented but not benchmarked |
 | Descriptors (all) | 45 | `descriptors_all` | ⚙️ Implemented but not benchmarked |
@@ -271,21 +271,17 @@ Each feature family is an **independent** baseline input. Do NOT concatenate fea
 
 ## Model Types
 
-### Implemented in Current Pipeline
+### Benchmarked Models
 
 | Model | CLI Flag | Status |
 |-------|----------|--------|
-| Random Forest | `rf` | ✅ Working — benchmarked |
-| XGBoost | `xgb` | ✅ Working — benchmarked |
-| LightGBM | `lgbm` | ✅ Working — benchmarked |
-
-### Available in Code (Extended Baseline — Not Yet Run)
-
-| Model | CLI Flag | Status |
-|-------|----------|--------|
-| SVM | `svm` | ⚙️ Implemented but not benchmarked |
-| Logistic Regression | `lr` | ⚙️ Implemented but not benchmarked |
-| KNN | `knn` | ⚙️ Implemented but not benchmarked |
+| Random Forest | `rf` | ✅ Benchmarked (classification + regression) |
+| XGBoost | `xgb` | ✅ Benchmarked (classification + regression) |
+| LightGBM | `lgbm` | ✅ Benchmarked (classification + regression) |
+| SVM | `svm` | ✅ Benchmarked (classification + regression) |
+| Logistic Regression | `lr` | ✅ Benchmarked (classification) |
+| KNN | `knn` | ✅ Benchmarked (classification + regression) |
+| Ridge | `ridge` | ✅ Benchmarked (regression) |
 
 ---
 
@@ -306,13 +302,16 @@ Each feature family is an **independent** baseline input. Do NOT concatenate fea
 
 ### Formal Baseline Features (evaluated independently)
 
-Currently benchmarked:
+Benchmarked:
 - `morgan` — Morgan/ECFP fingerprints (2048 bits)
-- `descriptors_basic` — Physicochemical descriptors (13 dimensions)
-
-Planned for formal baseline (already implemented, pending benchmark runs):
 - `maccs` — MACCS structural keys (167 bits)
 - `fp2` — Daylight fingerprints (2048 bits)
+- `descriptors_basic` — Physicochemical descriptors (13 dimensions)
+
+Not yet benchmarked:
+- `atom_pairs` — Atom pair fingerprints (1024 bits)
+- `descriptors_extended` — Extended descriptors (30 dimensions)
+- `descriptors_all` — All descriptors (45 dimensions)
 
 ### Optional Exploratory Features
 
@@ -327,18 +326,94 @@ When adding new feature families, create a new CLI flag and evaluate it independ
 
 ## Baseline Performance Reference
 
-**Established benchmark (B3DB Groups A+B, scaffold split, 3 seeds):**
+All results: B3DB Groups A+B, scaffold split.
+
+### Classical Classification (4 features x 6 models, 5 seeds)
 
 | Rank | Feature | Model | Test AUC | Test F1 |
 |------|---------|-------|----------|---------|
-| 1 | Morgan | RF | 0.9401 ± 0.0454 | 0.9391 ± 0.0270 |
-| 2 | Morgan | XGBoost | 0.9198 ± 0.0674 | 0.9335 ± 0.0310 |
-| 3 | Morgan | LightGBM | 0.9195 ± 0.0619 | 0.9363 ± 0.0331 |
-| 4 | descriptors_basic | RF | 0.9159 ± 0.0730 | 0.9397 ± 0.0270 |
-| 5 | descriptors_basic | XGBoost | 0.9115 ± 0.0712 | 0.9370 ± 0.0308 |
-| 6 | descriptors_basic | LightGBM | 0.9114 ± 0.0815 | 0.9395 ± 0.0298 |
+| 1 | MACCS (167) | LightGBM | 0.9535 ± 0.0388 | 0.9403 ± 0.0258 |
+| 2 | MACCS | RF | 0.9504 ± 0.0462 | 0.9417 ± 0.0206 |
+| 3 | Morgan (2048) | RF | 0.9504 ± 0.0330 | 0.9407 ± 0.0185 |
+| 4 | MACCS | XGBoost | 0.9496 ± 0.0448 | 0.9381 ± 0.0233 |
+| 5 | FP2 (2048) | XGBoost | 0.9459 ± 0.0352 | 0.9443 ± 0.0148 |
+| 6 | FP2 | LightGBM | 0.9439 ± 0.0393 | 0.9409 ± 0.0168 |
+| 7 | FP2 | RF | 0.9436 ± 0.0392 | 0.9415 ± 0.0171 |
+| 8 | FP2 | SVM | 0.9402 ± 0.0270 | 0.9353 ± 0.0185 |
+| 9 | MACCS | SVM | 0.9387 ± 0.0419 | 0.9349 ± 0.0253 |
+| 10 | Desc_basic (13) | RF | 0.9377 ± 0.0597 | 0.9459 ± 0.0219 |
+| 11 | Morgan | LightGBM | 0.9359 ± 0.0456 | 0.9392 ± 0.0221 |
+| 12 | Morgan | XGBoost | 0.9343 ± 0.0475 | 0.9346 ± 0.0204 |
+| 13 | Desc_basic | XGBoost | 0.9336 ± 0.0590 | 0.9422 ± 0.0231 |
+| 14 | Desc_basic | LightGBM | 0.9333 ± 0.0656 | 0.9421 ± 0.0215 |
+| 15 | Morgan | SVM | 0.9266 ± 0.0424 | 0.9381 ± 0.0170 |
+| 16 | MACCS | LR | 0.9216 ± 0.0469 | 0.9243 ± 0.0293 |
+| 17 | MACCS | KNN | 0.9207 ± 0.0612 | 0.9353 ± 0.0193 |
+| 18 | Morgan | LR | 0.9137 ± 0.0747 | 0.9314 ± 0.0243 |
+| 19 | FP2 | LR | 0.9106 ± 0.0467 | 0.9324 ± 0.0174 |
+| 20 | Desc_basic | KNN | 0.9052 ± 0.0675 | 0.9267 ± 0.0192 |
+| 21 | FP2 | KNN | 0.9019 ± 0.0688 | 0.9267 ± 0.0222 |
+| 22 | Desc_basic | LR | 0.8912 ± 0.0521 | 0.9217 ± 0.0153 |
+| 23 | Morgan | KNN | 0.8874 ± 0.0639 | 0.9316 ± 0.0190 |
+| 24 | Desc_basic | SVM | 0.8797 ± 0.1027 | 0.9298 ± 0.0185 |
 
-Results for maccs, fp2, atom_pairs, and additional models (SVM, LR, KNN) are not yet in the formal benchmark. Run the extended baseline suite to populate these.
+### Classical Regression (4 features, 5 seeds)
+
+| Rank | Feature | Model | Test R² | Test RMSE |
+|------|---------|-------|---------|-----------|
+| 1 | Desc_basic | RF | 0.4488 ± 0.0918 | 0.5798 ± 0.0457 |
+| 2 | MACCS | RF | 0.4397 ± 0.0922 | 0.5842 ± 0.0362 |
+| 3 | Desc_basic | XGBoost | 0.4347 ± 0.1163 | 0.5860 ± 0.0513 |
+| 4 | MACCS | SVM | 0.4212 ± 0.0574 | 0.5955 ± 0.0268 |
+| 5 | Desc_basic | Ridge | 0.4139 ± 0.0120 | 0.6007 ± 0.0356 |
+| ... | ... | ... | ... | ... |
+
+### GNN Baselines (5 seeds)
+
+| Model | Classification AUC | Regression R² |
+|-------|--------------------|---------------|
+| GAT | 0.9356 ± 0.0314 | 0.6408 ± 0.0357 |
+| GIN | 0.9271 ± 0.0349 | 0.7062 ± 0.0473 |
+| GCN | 0.9255 ± 0.0384 | 0.2820 ± 0.0723 |
+
+### Transformer Baseline (5 seeds)
+
+| Task | Primary Metric | Secondary |
+|------|---------------|-----------|
+| Classification | AUC 0.8820 ± 0.0768 | F1 0.9013 ± 0.0209 |
+| Regression | R² 0.1911 ± 0.2111 | RMSE 0.7015 ± 0.1007 |
+
+### Unified Leaderboard
+
+**Classification (AUC):**
+
+| Rank | Category | Model | Representation | Test AUC |
+|------|----------|-------|----------------|----------|
+| 1 | Classical | LightGBM | MACCS (167) | 0.9535 ± 0.039 |
+| 2 | Classical | RF | MACCS (167) | 0.9504 ± 0.046 |
+| 3 | Classical | RF | Morgan (2048) | 0.9504 ± 0.033 |
+| 4 | Classical | XGBoost | MACCS (167) | 0.9496 ± 0.045 |
+| 5 | Classical | XGBoost | FP2 (2048) | 0.9459 ± 0.035 |
+| 6 | GNN | GAT | Molecular Graph | 0.9356 ± 0.031 |
+| 7 | GNN | GIN | Molecular Graph | 0.9271 ± 0.035 |
+| 8 | GNN | GCN | Molecular Graph | 0.9255 ± 0.038 |
+| 9 | Transformer | Transformer | SMILES | 0.8820 ± 0.077 |
+
+**Regression (R²):**
+
+| Rank | Category | Model | Representation | Test R² |
+|------|----------|-------|----------------|---------|
+| 1 | GNN | GIN | Molecular Graph | 0.7062 ± 0.047 |
+| 2 | GNN | GAT | Molecular Graph | 0.6408 ± 0.036 |
+| 3 | GNN | GCN | Molecular Graph | 0.2820 ± 0.072 |
+| 4 | Classical | RF | Desc_basic (13) | 0.4488 ± 0.092 |
+| 5 | Transformer | Transformer | SMILES | 0.1911 ± 0.211 |
+
+### Key Findings
+
+- **Classification:** Classical methods (tree models + fingerprints) outperform GNN and Transformer. MACCS (167 bits) matches or exceeds Morgan (2048 bits), suggesting structural keys capture BBB-relevant features efficiently.
+- **Regression:** GNN dominates classical methods, with GIN achieving R² 0.71 vs classical best 0.45. Graph structure is more informative for predicting continuous permeability values.
+- **Transformer:** Weakest across both tasks, likely due to limited SMILES sequence-level signal for BBB permeability.
 
 ---
 
@@ -348,7 +423,8 @@ If you use this code or data, cite the B3DB database.
 
 ---
 
-**Last Updated:** 2026-04-02
-**Project Status:** Classical baselines complete, GNN baselines implemented
-**Best Classical Model:** Random Forest + Morgan (AUC = 0.9401)
-**GNN Stage:** Implemented — pending benchmark run
+**Last Updated:** 2026-04-07
+**Project Status:** All baselines complete (Classical, GNN, Transformer)
+**Best Classification:** MACCS + LightGBM (AUC = 0.9535)
+**Best Regression:** GIN (R² = 0.7062)
+**Next Stage:** Advanced models (pretraining, fine-tuning, explainability)
