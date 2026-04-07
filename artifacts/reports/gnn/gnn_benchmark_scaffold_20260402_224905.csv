@@ -1,0 +1,2 @@
+model,task,n_seeds,train_auc_mean,train_auc_std,train_f1_mean,train_f1_std,train_loss_mean,train_loss_std,val_auc_mean,val_auc_std,val_f1_mean,val_f1_std,val_loss_mean,val_loss_std,test_auc_mean,test_auc_std,test_f1_mean,test_f1_std,test_loss_mean,test_loss_std
+gcn,classification,1,0.9267241866851864,0.0,0.9187124931805782,0.0,0.30059200705125416,0.0,0.9381715986113407,0.0,0.9177330895795247,0.0,0.2972911794980367,0.0,0.949665655964048,0.0,0.9342492639842983,0.0,0.24889558011835272,0.0

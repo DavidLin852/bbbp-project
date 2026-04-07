@@ -116,9 +116,9 @@ def main():
     # Setup paths
     P = Paths()
 
-    # Load features (shared path with task-specific labels)
+    # Load features (task-specific subdirectory ensures correct alignment)
     if args.feature_dir is None:
-        feature_dir = P.features / f"seed_{args.seed}" / args.split / args.feature
+        feature_dir = P.features / f"seed_{args.seed}" / args.split / args.task / args.feature
     else:
         feature_dir = Path(args.feature_dir)
 

@@ -125,6 +125,24 @@ def smiles_to_graph(smiles: str) -> Optional[tuple[torch.Tensor, torch.Tensor, t
     return x, edge_index, edge_attr
 
 
+def smiles_to_pyg_graph(smiles: str) -> Optional[Data]:
+    """
+    Convert SMILES to PyTorch Geometric Data object.
+
+    Args:
+        smiles: SMILES string
+
+    Returns:
+        PyG Data object with x, edge_index, edge_attr or None
+    """
+    graph = smiles_to_graph(smiles)
+    if graph is None:
+        return None
+
+    x, edge_index, edge_attr = graph
+    return Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+
+
 @dataclass
 class GraphConfig:
     """Configuration for graph dataset."""

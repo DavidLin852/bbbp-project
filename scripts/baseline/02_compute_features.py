@@ -134,9 +134,10 @@ def main():
 
     print(f"Feature shape: train={X_train.shape}, val={X_val.shape}, test={X_test.shape}")
 
-    # Save features (shared path; label files are task-specific)
+    # Save features (task-specific subdirectory to avoid collision between
+    # classification and regression splits)
     if args.output_dir is None:
-        output_dir = P.features / f"seed_{args.seed}" / args.split / args.feature
+        output_dir = P.features / f"seed_{args.seed}" / args.split / args.task / args.feature
     else:
         output_dir = Path(args.output_dir)
 
@@ -148,7 +149,7 @@ def main():
     np.save(output_dir / "X_val.npy", X_val)
     np.save(output_dir / "X_test.npy", X_test)
 
-    # Save labels (task-specific filenames to avoid collision)
+    # Save labels (task-specific filenames)
     if args.task == "classification":
         y_train = dataset.train[dataset.label_col].to_numpy()
         y_val = dataset.val[dataset.label_col].to_numpy()

@@ -38,6 +38,19 @@ python scripts/analysis/aggregate_results.py        # Aggregate results
 python scripts/analysis/generate_benchmark_summary.py  # Summary report
 ```
 
+### GNN Baselines (Stage 2)
+
+```bash
+# Install research dependencies first
+pip install -r requirements-research.txt
+
+# Run GNN benchmarks
+python scripts/gnn/run_gnn_benchmark.py --dry_run
+python scripts/gnn/run_gnn_benchmark.py --tasks classification
+```
+
+See `docs/GNN_STAGE.md` for full documentation.
+
 ---
 
 ## Protected Areas
@@ -335,6 +348,7 @@ If you use this code or data, cite the B3DB database.
 
 ---
 
-**Last Updated:** 2026-03-31
-**Project Status:** Baseline pipeline stable, research modules in development
-**Best Model:** Random Forest + Morgan (AUC = 0.9401)
+**Last Updated:** 2026-04-02
+**Project Status:** Classical baselines complete, GNN baselines implemented
+**Best Classical Model:** Random Forest + Morgan (AUC = 0.9401)
+**GNN Stage:** Implemented — pending benchmark run
