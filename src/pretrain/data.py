@@ -102,8 +102,8 @@ class ZINC22Dataset(Dataset):
         """
         Build index of all SMILES strings.
 
-        Uses caching to avoid re-reading files on every initialization.
-        Uses parallel processing for faster file reading.
+        Reads ALL files evenly, then subsamples. This ensures uniform coverage
+        across the entire ZINC22 dataset. Uses caching to avoid re-reading files.
         """
         cache_file = self.cache_dir / f"smiles_index_{self.num_samples}_{self.seed}.pkl"
 
@@ -113,17 +113,19 @@ class ZINC22Dataset(Dataset):
             with open(cache_file, "rb") as f:
                 return pickle.load(f)
 
-        # Read all SMILES from files using parallel processing
-        print(f"Reading {len(self.smi_files)} files with {mp.cpu_count()} workers...")
+        # Read ALL SMILES from files using parallel processing
+        print(f"Reading ALL {len(self.smi_files)} files with parallel workers...")
         all_smiles = self._read_files_parallel()
+        print(f"Loaded {len(all_smiles):,} total molecules from ZINC22")
 
         # Shuffle if requested
         if self.shuffle:
             rng = np.random.RandomState(self.seed)
             rng.shuffle(all_smiles)
 
-        # Limit to num_samples
+        # Limit to num_samples (after shuffle for random selection)
         all_smiles = all_smiles[:self.num_samples]
+        print(f"Selected {len(all_smiles):,} molecules for pretraining")
 
         # Cache for next time
         with open(cache_file, "wb") as f:
@@ -133,17 +135,17 @@ class ZINC22Dataset(Dataset):
 
     def _read_files_parallel(self) -> List[str]:
         """Read multiple gz files in parallel using ProcessPoolExecutor."""
-        # Calculate samples per file (rough estimate)
-        samples_per_file = max(1000, self.num_samples // len(self.smi_files))
-
+        # Read ALL files fully, then subsample. This ensures uniform coverage
+        # across the entire ZINC22 dataset rather than over-sampling early files.
+        # For 50M samples from 1414 files, we need to read all files evenly.
         all_smiles = []
-        num_workers = min(mp.cpu_count(), len(self.smi_files))
+        num_workers = min(mp.cpu_count(), len(self.smi_files), 32)  # Cap workers
 
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            # Submit tasks
+            # Submit ALL files (no early truncation)
             futures = {
-                executor.submit(_read_single_file, smi_file, samples_per_file): smi_file
-                for smi_file in self.smi_files[: (self.num_samples // samples_per_file + 1)]
+                executor.submit(_read_single_file, smi_file, max_samples=None): smi_file
+                for smi_file in self.smi_files
             }
 
             # Collect results with progress bar
@@ -153,35 +155,32 @@ class ZINC22Dataset(Dataset):
                     try:
                         smiles_list = future.result()
                         all_smiles.extend(smiles_list)
-                        pbar.set_postfix({"collected": len(all_smiles)})
+                        pbar.set_postfix({"collected": f"{len(all_smiles):,}"})
                     except Exception as e:
                         print(f"Warning: Error reading {smi_file}: {e}")
                     finally:
                         pbar.update(1)
 
-                    # Early stop if we have enough
-                    if len(all_smiles) >= self.num_samples:
-                        # Cancel remaining futures
-                        for f in futures:
-                            f.cancel()
-                        break
-
         return all_smiles
 
 
-def _read_single_file(smi_file: Path, max_samples: int) -> List[str]:
+def _read_single_file(smi_file: Path, max_samples: Optional[int] = None) -> List[str]:
     """
     Read a single .smi.gz file and extract SMILES.
 
     This function is designed to be called in a separate process.
     Fast basic validation only - no RDKit validation for speed.
+
+    Args:
+        smi_file: Path to the .smi.gz file
+        max_samples: Maximum samples to read. None = read all lines.
     """
     smiles_list = []
 
     try:
         with gzip.open(smi_file, "rt", encoding="utf-8") as f:
             for line in f:
-                if len(smiles_list) >= max_samples:
+                if max_samples is not None and len(smiles_list) >= max_samples:
                     break
 
                 parts = line.strip().split("\t")
@@ -193,50 +192,11 @@ def _read_single_file(smi_file: Path, max_samples: int) -> List[str]:
     except Exception:
         pass
 
-    return smiles_list
-
-
-def _is_valid_smiles_fast(smiles: str) -> bool:
-    """
-    Fast basic SMILES validation without RDKit.
-
-    Only checks:
-    - Length is reasonable (1-200 chars)
-    - Contains valid SMILES characters
-    - Not empty or whitespace only
-
-    This is ~100x faster than RDKit validation.
-    Invalid SMILES will be filtered out during first training epoch
-    if needed, but most ZINC22 SMILES are valid.
-    """
-    if not smiles or len(smiles.strip()) == 0:
-        return False
-
-    # Length check
-    if len(smiles) < 1 or len(smiles) > 200:
-        return False
-
-    # Basic character check - valid SMILES characters
-    valid_chars = set("BCNOPSFIKClBrH()=#0123456789+-[@].[nh]se")
-    # Add lowercase for aromatic atoms
-    valid_chars.update(set("cnops"))
-
-    try:
-        # Quick check: all characters should be valid SMILES characters
-        # Allow some flexibility for unusual SMILES notations
-        for char in smiles:
-            if char.isalpha() or char.isdigit() or char in "()=#+-@.[].* ":
-                continue
-            # Allow brackets and special characters
-            if char in "\\|%":
-                continue
-        return True
-    except:
-        return False
+    return all_smiles
 
     @staticmethod
     def _is_valid_smiles(smiles: str) -> bool:
-        """Check if SMILES is valid."""
+        """Check if SMILES is valid using RDKit."""
         try:
             mol = Chem.MolFromSmiles(smiles)
             return mol is not None and mol.GetNumAtoms() > 0
@@ -259,6 +219,38 @@ def _is_valid_smiles_fast(smiles: str) -> bool:
 
         else:
             raise ValueError(f"Unknown representation: {self.representation}")
+
+
+def _is_valid_smiles_fast(smiles: str) -> bool:
+    """
+    Fast basic SMILES validation without RDKit.
+
+    Only checks:
+    - Length is reasonable (1-200 chars)
+    - Contains valid SMILES characters
+    - Not empty or whitespace only
+
+    This is ~100x faster than RDKit validation.
+    Invalid SMILES will be filtered out during first training epoch
+    if needed, but most ZINC22 SMILES are valid.
+    """
+    if not smiles or len(smiles.strip()) == 0:
+        return False
+
+    # Length check
+    if len(smiles) < 1 or len(smiles) > 200:
+        return False
+
+    try:
+        # Quick check: all characters should be valid SMILES characters
+        for char in smiles:
+            if char.isalpha() or char.isdigit() or char in "()=#+-@.[].* ":
+                continue
+            if char in "\\|%":
+                continue
+        return True
+    except:
+        return False
 
 
 def create_zinc22_dataloader(
@@ -324,13 +316,13 @@ def create_zinc22_dataloader(
 
 def count_zinc22_molecules(data_dir: str | Path) -> int:
     """
-    Count total number of molecules in ZINC22 directory.
+    Count total number of molecules in ZINC22 directory using fast validation.
 
     Args:
         data_dir: Path to ZINC22 directory
 
     Returns:
-        Total count of valid SMILES
+        Total count of valid SMILES (fast estimate)
     """
     data_dir = Path(data_dir)
     smi_files = sorted(data_dir.rglob("*.smi.gz"))
@@ -343,12 +335,53 @@ def count_zinc22_molecules(data_dir: str | Path) -> int:
                     parts = line.strip().split("\t")
                     if len(parts) >= 1:
                         smiles = parts[0].strip()
-                        if ZINC22Dataset._is_valid_smiles(smiles):
+                        if _is_valid_smiles_fast(smiles):
                             total += 1
         except:
             continue
 
     return total
+
+
+def estimate_total_molecules(data_dir: str | Path, sample_files: int = 10) -> int:
+    """
+    Estimate total molecules by sampling a few files and extrapolating.
+
+    Much faster than counting all files (~2 min vs hours).
+
+    Args:
+        data_dir: Path to ZINC22 directory
+        sample_files: Number of files to sample for estimation
+
+    Returns:
+        Estimated total molecule count
+    """
+    import random
+    data_dir = Path(data_dir)
+    smi_files = sorted(data_dir.rglob("*.smi.gz"))
+
+    if not smi_files:
+        return 0
+
+    # Sample files evenly across the directory
+    step = max(1, len(smi_files) // sample_files)
+    sampled_files = [smi_files[i] for i in range(0, len(smi_files), step)]
+
+    total_lines = 0
+    for smi_file in tqdm(sampled_files, desc="Sampling files"):
+        try:
+            with gzip.open(smi_file, "rt") as f:
+                total_lines += sum(1 for _ in f)
+        except:
+            continue
+
+    avg_per_file = total_lines / len(sampled_files)
+    estimated_total = int(avg_per_file * len(smi_files))
+    print(f"Sampled {len(sampled_files)}/{len(smi_files)} files. "
+          f"Avg {avg_per_file:.0f} lines/file. "
+          f"Estimated total: {estimated_total:,}")
+
+    return estimated_total
 
 
 # ==================== Backward Compatibility ====================
