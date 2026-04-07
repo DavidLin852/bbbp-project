@@ -22,6 +22,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.cuda.amp import autocast, GradScaler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import numpy as np
@@ -302,6 +303,12 @@ def pretrain_smiles_model(
     # Loss function
     criterion = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)
 
+    # Mixed precision training
+    use_amp = device.type == "cuda"
+    scaler = GradScaler() if use_amp else None
+    if use_amp:
+        print("Using mixed precision training (AMP)")
+
     # Training loop
     history = {"train_loss": [], "learning_rates": []}
 
@@ -320,18 +327,25 @@ def pretrain_smiles_model(
             mask = batch["mask"].to(device)
             original_ids = batch["original_ids"].to(device)
 
-            # Forward
-            logits = model(input_ids, attention_mask, mask)
-
-            # Compute loss (only on masked tokens)
-            targets = original_ids[mask]
-            loss = criterion(logits, targets)
-
-            # Backward
             optimizer.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            optimizer.step()
+
+            if use_amp:
+                with autocast():
+                    logits = model(input_ids, attention_mask, mask)
+                    targets = original_ids[mask]
+                    loss = criterion(logits, targets)
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                logits = model(input_ids, attention_mask, mask)
+                targets = original_ids[mask]
+                loss = criterion(logits, targets)
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                optimizer.step()
 
             total_loss += loss.item()
             num_batches += 1
@@ -353,6 +367,7 @@ def pretrain_smiles_model(
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "scheduler_state_dict": scheduler.state_dict(),
+            "scaler_state_dict": scaler.state_dict() if scaler else None,
             "history": history,
             "config": {
                 "vocab_size": len(tokenizer),
