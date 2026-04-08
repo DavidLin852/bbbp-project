@@ -182,12 +182,71 @@ PRIORITY_EXPERIMENTS = [
         "hidden_dim": 256,
         "notes": "Denoising flagship: full scale (5M, 20ep, 256d)",
     },
+
+    # ============================================================
+    # Strategy C: Transformer MLM (SMILES masked language modeling)
+    # ============================================================
+
+    # C1: Sample size ablation (256d, 4 layers, 8 heads, 10 epochs)
+    {
+        "id": "T_E10_TRANS_100K",
+        "strategy": "transformer",
+        "samples": 100_000,
+        "epochs": 10,
+        "model": "transformer",
+        "hidden_dim": 256,
+        "notes": "Transformer MLM 100K: small scale baseline",
+    },
+    {
+        "id": "T_E10_TRANS_1M",
+        "strategy": "transformer",
+        "samples": 1_000_000,
+        "epochs": 10,
+        "model": "transformer",
+        "hidden_dim": 256,
+        "notes": "Transformer MLM 1M: standard scale",
+    },
+    {
+        "id": "T_E10_TRANS_5M",
+        "strategy": "transformer",
+        "samples": 5_000_000,
+        "epochs": 10,
+        "model": "transformer",
+        "hidden_dim": 256,
+        "notes": "Transformer MLM 5M: max scale",
+    },
+
+    # C2: Depth comparison (1M, 10 epochs)
+    {
+        "id": "T_E10_TRANS_1M_L6",
+        "strategy": "transformer",
+        "samples": 1_000_000,
+        "epochs": 10,
+        "model": "transformer",
+        "hidden_dim": 256,
+        "n_layers": 6,
+        "notes": "Transformer MLM 6 layers: depth comparison",
+    },
+
+    # C3: Flagship (5M, 20 epochs, 512d, 8 layers)
+    {
+        "id": "T_E20_TRANS_512_5M",
+        "strategy": "transformer",
+        "samples": 5_000_000,
+        "epochs": 20,
+        "model": "transformer",
+        "hidden_dim": 512,
+        "n_layers": 8,
+        "n_heads": 12,
+        "notes": "Transformer flagship: full scale (5M, 20ep, 512d, 8L)",
+    },
 ]
 
 # Strategy -> script mapping
 STRATEGY_SCRIPTS = {
     "property": "scripts/pretrain/pretrain_graph.py",
     "denoising": "scripts/pretrain/pretrain_denoising.py",
+    "transformer": "scripts/pretrain/pretrain_smiles.py",
 }
 
 # Save directory base
@@ -201,11 +260,25 @@ def build_command(exp: dict) -> list[str]:
         "python", str(PROJECT_ROOT / script),
         "--num_samples", str(exp["samples"]),
         "--epochs", str(exp["epochs"]),
-        "--model", exp["model"],
-        "--hidden_dim", str(exp["hidden_dim"]),
         "--save_dir", f"{SAVE_DIR_BASE}/{exp['id']}",
-        "--batch_size", "256",
     ]
+
+    if exp["strategy"] == "transformer":
+        # Transformer uses d_model, n_layers, n_heads, batch_size
+        cmd += [
+            "--d_model", str(exp.get("hidden_dim", 256)),
+            "--n_layers", str(exp.get("n_layers", 4)),
+            "--n_heads", str(exp.get("n_heads", 8)),
+            "--batch_size", "512",
+        ]
+    else:
+        # GNN strategies use model, hidden_dim, batch_size
+        cmd += [
+            "--model", exp["model"],
+            "--hidden_dim", str(exp["hidden_dim"]),
+            "--batch_size", "256",
+        ]
+
     return cmd
 
 
@@ -257,11 +330,17 @@ def main():
     args = parse_args()
 
     if args.list:
-        print(f"\n{'#':>2} {'ID':<25} {'Strategy':<12} {'Samples':>8} {'Epochs':>6} {'Model':<5} {'Dim':>4}  Notes")
-        print("-" * 100)
+        print(f"\n{'#':>2} {'ID':<25} {'Strategy':<12} {'Samples':>8} {'Epochs':>6} {'Model':<12} {'Dim':>4}  Notes")
+        print("-" * 110)
         for i, exp in enumerate(PRIORITY_EXPERIMENTS):
+            if exp["strategy"] == "transformer":
+                n_layers = exp.get("n_layers", 4)
+                n_heads = exp.get("n_heads", 8)
+                model_str = f"trans-L{n_layers}H{n_heads}"
+            else:
+                model_str = exp["model"].upper()
             print(f"{i+1:>2} {exp['id']:<25} {exp['strategy']:<12} {exp['samples']:>8,} {exp['epochs']:>6} "
-                  f"{exp['model']:<5} {exp['hidden_dim']:>4}  {exp['notes']}")
+                  f"{model_str:<12} {exp.get('hidden_dim', 256):>4}  {exp['notes']}")
         print(f"\nTotal: {len(PRIORITY_EXPERIMENTS)} experiments")
         return
 
