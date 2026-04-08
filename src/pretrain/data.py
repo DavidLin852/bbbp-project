@@ -98,51 +98,59 @@ class ZINC22Dataset(Dataset):
 
     def _build_index(self) -> List[str]:
         """
-        Build index of SMILES by reading a capped number of lines per file.
+        Build index of SMILES strings.
 
-        For num_samples molecules across N files, reads ~num_samples/N lines
-        per file in parallel. With 268B total lines and 2M target samples,
-        this means reading only ~1414 lines per file (~0.007% of each file).
-
-        Uses caching to avoid re-reading files on subsequent runs.
+        Priority:
+        1. Full cache (all molecules from ZINC22) → fastest for subsequent runs
+        2. Subsample cache (smiles_index_{N}_{seed}.pkl) → fast
+        3. Fallback: read capped lines per file → slow (one-time)
         """
-        cache_file = self.cache_dir / f"smiles_index_{self.num_samples}_{self.seed}.pkl"
+        import os
 
-        # Try to load from cache
-        if cache_file.exists():
-            print(f"Loading cached index from {cache_file}")
-            with open(cache_file, "rb") as f:
-                return pickle.load(f)
+        # Priority 1: Full cache
+        full_cache = os.environ.get("ZINC22_CACHE") or str(
+            self.data_dir / "full_cache.parquet"
+        )
+        full_cache_path = Path(full_cache)
+        if full_cache_path.exists():
+            print(f"Loading full cache from {full_cache_path}...")
+            all_smiles = _load_full_cache(full_cache_path)
+            print(f"Loaded {len(all_smiles):,} molecules from full cache")
+        else:
+            # Priority 2: Subsample cache
+            cache_file = self.cache_dir / f"smiles_index_{self.num_samples}_{self.seed}.pkl"
+            if cache_file.exists():
+                print(f"Loading cached index from {cache_file}")
+                with open(cache_file, "rb") as f:
+                    all_smiles = pickle.load(f)
+            else:
+                # Priority 3: Fallback - read capped lines per file
+                k = self.num_samples
+                num_files = len(self.smi_files)
+                lines_per_file = max(3000, int(k * 1.6 / num_files))
+                print(f"Reading {lines_per_file:,} lines per file from {num_files} files "
+                      f"(target: {k:,} molecules)...")
 
-        # Lines to read per file: distribute samples evenly across files
-        k = self.num_samples
-        num_files = len(self.smi_files)
-        lines_per_file = max(1000, k // num_files)  # At least 1000 per file
-        print(f"Reading {lines_per_file:,} lines per file from {num_files} files "
-              f"(target: {k:,} molecules)...")
+                all_smiles = []
+                for smi_file in tqdm(self.smi_files, desc="Reading files"):
+                    try:
+                        smiles = _read_file_fast(smi_file, max_lines=lines_per_file)
+                        all_smiles.extend(smiles)
+                    except Exception as e:
+                        print(f"Warning: Error reading {smi_file}: {e}")
 
-        # Read all files in parallel
-        all_smiles = []
-        for smi_file in tqdm(self.smi_files, desc="Reading files"):
-            try:
-                smiles = _read_file_fast(smi_file, max_lines=lines_per_file)
-                all_smiles.extend(smiles)
-            except Exception as e:
-                print(f"Warning: Error reading {smi_file}: {e}")
+                print(f"Loaded {len(all_smiles):,} molecules")
 
-        print(f"Loaded {len(all_smiles):,} molecules")
+                # Cache
+                with open(cache_file, "wb") as f:
+                    pickle.dump(all_smiles, f)
 
         # Shuffle and limit to num_samples
         rng = np.random.RandomState(self.seed)
         rng.shuffle(all_smiles)
-        all_smiles = all_smiles[:k]
+        all_smiles = all_smiles[: self.num_samples]
 
         print(f"Selected {len(all_smiles):,} molecules for pretraining")
-
-        # Cache
-        with open(cache_file, "wb") as f:
-            pickle.dump(all_smiles, f)
-
         return all_smiles
 
     @staticmethod
@@ -199,6 +207,24 @@ def _read_file_fast(smi_file: Path, max_lines: int) -> List[str]:
     except Exception:
         pass
     return smiles_list
+
+
+def _load_full_cache(cache_path: Path) -> List[str]:
+    """Load full ZINC22 cache from parquet or pickle."""
+    if cache_path.suffix == ".parquet":
+        import pyarrow.parquet as pq
+
+        table = pq.read_table(cache_path)
+        return table["smiles"].to_pylist()
+    elif cache_path.suffix == ".gz":
+        import pickle
+
+        with gzip.open(cache_path, "rb") as f:
+            return pickle.load(f)
+    else:
+        # Try pickle
+        with open(cache_path, "rb") as f:
+            return pickle.load(f)
 
 
 def _is_valid_smiles_fast(smiles: str) -> bool:
