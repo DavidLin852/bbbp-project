@@ -219,6 +219,7 @@ def build_model(
     in_dim: int,
     config: GNNConfig,
     task: Literal["classification", "regression"],
+    pretrained_encoder_path: str | None = None,
 ) -> nn.Module:
     """
     Build a GNN model with the appropriate task head.
@@ -228,6 +229,7 @@ def build_model(
         in_dim: Input node feature dimension
         config: GNN configuration
         task: Task type
+        pretrained_encoder_path: Optional path to pretrained backbone state_dict
 
     Returns:
         Full model ready for training
@@ -244,6 +246,11 @@ def build_model(
         )
     else:
         raise ValueError(f"Unknown model type: {model_type}")
+
+    if pretrained_encoder_path is not None:
+        state_dict = torch.load(pretrained_encoder_path, map_location="cpu")
+        backbone.load_state_dict(state_dict)
+        print(f"  Loaded pretrained backbone from {pretrained_encoder_path}")
 
     if task == "classification":
         return GraphClassifier(backbone, hidden, config.dropout)
@@ -262,6 +269,7 @@ def train_gnn(
     device: str | None = None,
     num_workers: int = 0,
     verbose: bool = True,
+    pretrained_encoder_path: str | None = None,
 ) -> GNNTrainingResult | GNNRegressionResult:
     """
     Train a single GNN model on a dataset.
@@ -296,10 +304,11 @@ def train_gnn(
 
     # Build model and move to device
     in_dim = dataset.get_input_dim()
-    model = build_model(model_type, in_dim, cfg, task).to(dev)
+    model = build_model(model_type, in_dim, cfg, task, pretrained_encoder_path).to(dev)
 
     if verbose:
-        print(f"  Model: {model_type} ({task})")
+        pretrained_tag = f" (pretrained: {pretrained_encoder_path})" if pretrained_encoder_path else ""
+        print(f"  Model: {model_type} ({task}){pretrained_tag}")
         print(f"  Params: {sum(p.numel() for p in model.parameters()):,}")
         print(f"  Trainable: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
         print_device_info(dev)
@@ -472,6 +481,7 @@ def train_gnn_multiple_seeds(
     device: str | None = None,
     num_workers: int = 0,
     verbose: bool = True,
+    pretrained_encoder_path: str | None = None,
 ) -> list:
     """
     Train a GNN model across multiple seeds.
@@ -516,6 +526,7 @@ def train_gnn_multiple_seeds(
             device=device,
             num_workers=num_workers,
             verbose=verbose,
+            pretrained_encoder_path=pretrained_encoder_path,
         )
 
         results.append(result)

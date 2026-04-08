@@ -82,6 +82,7 @@ def run_single(
     device: str,
     num_workers: int,
     skip_existing: bool,
+    pretrained_encoder_path: str | None = None,
 ) -> dict | None:
     """
     Run a single GNN experiment.
@@ -124,6 +125,7 @@ def run_single(
             device=device,
             num_workers=num_workers,
             verbose=True,
+            pretrained_encoder_path=pretrained_encoder_path,
         )
 
         return result.to_dict()
@@ -294,6 +296,11 @@ def main():
         "--output_dir", type=str, default=None,
         help="Override output directory (default: artifacts/models/gnn)"
     )
+    parser.add_argument(
+        "--pretrained_encoder", type=str, default=None,
+        help="Path to pretrained backbone state_dict (e.g. artifacts/models/pretrain/gin_full/gin_pretrained_backbone.pt). "
+             "Only supported for 'gin' model."
+    )
 
     args = parser.parse_args()
 
@@ -349,6 +356,8 @@ def main():
     print(f"Output:    {output_base}")
     print(f"Workers:   {args.num_workers}")
     print(f"Device:    {dev}")
+    if args.pretrained_encoder:
+        print(f" Pretrained: {args.pretrained_encoder}")
     print(f"Config:    hidden={config.hidden_dim}, layers={config.num_layers}, "
           f"heads={config.heads}, dropout={config.dropout}")
     print(f"Training:  lr={config.lr}, wd={config.weight_decay}, "
@@ -398,6 +407,7 @@ def main():
                     device=device_str,
                     num_workers=args.num_workers,
                     skip_existing=args.skip_existing,
+                    pretrained_encoder_path=args.pretrained_encoder,
                 )
 
                 if result:
