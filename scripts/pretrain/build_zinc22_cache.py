@@ -79,7 +79,7 @@ def main():
     print(f"Estimated size: 30-50 GB compressed")
     print()
 
-    with gz.open(out_path, "wt", encoding="utf-8") as fout:
+    with gzip.open(out_path, "wt", encoding="utf-8") as fout:
         with tqdm(total=len(smi_files), desc="Reading files") as pbar:
             for smi_file in smi_files:
                 try:
