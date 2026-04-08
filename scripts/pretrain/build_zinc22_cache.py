@@ -21,7 +21,6 @@ import argparse
 import gzip
 import multiprocessing as mp
 from pathlib import Path
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 import time
 
@@ -32,8 +31,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 def parse_args():
     parser = argparse.ArgumentParser(description="Build ZINC22 full cache")
     parser.add_argument("--data_dir", type=str, default="data/zinc22")
-    parser.add_argument("--output", type=str, default="data/zinc22/full_cache.parquet")
-    parser.add_argument("--num_workers", type=int, default=32)
+    parser.add_argument("--output", type=str, default="data/zinc22/full_cache.txt.gz")
+    parser.add_argument("--num_workers", type=int, default=1,
+                        help="Number of parallel reader processes (default: 1, sequential)")
     return parser.parse_args()
 
 
@@ -53,22 +53,6 @@ def _is_valid_smiles_fast(smiles: str) -> bool:
         return False
 
 
-def _read_single_file(smi_file: Path) -> list:
-    """Read all valid SMILES from a single file."""
-    smiles_list = []
-    try:
-        with gzip.open(smi_file, "rt", encoding="utf-8") as f:
-            for line in f:
-                parts = line.strip().split("\t")
-                if len(parts) >= 1:
-                    smiles = parts[0].strip()
-                    if _is_valid_smiles_fast(smiles):
-                        smiles_list.append(smiles)
-    except Exception:
-        pass
-    return smiles_list
-
-
 def main():
     args = parse_args()
     data_dir = Path(args.data_dir)
@@ -84,51 +68,43 @@ def main():
     print("=" * 60)
 
     t0 = time.time()
-    all_smiles = []
     num_workers = min(args.num_workers, len(smi_files), mp.cpu_count())
 
-    with ProcessPoolExecutor(max_workers=num_workers) as executor:
-        futures = {executor.submit(_read_single_file, f): f for f in smi_files}
-        done = 0
-        with tqdm(total=len(futures), desc="Reading files") as pbar:
-            for future in as_completed(futures):
-                smiles_list = future.result()
-                all_smiles.extend(smiles_list)
-                done += 1
+    # Stream write to gzip: no memory accumulation
+    # Each molecule ~80 bytes avg, 268B molecules ≈ 215 GB raw → ~30-50 GB compressed
+    out_path = Path(args.output)
+    total_count = 0
+
+    print(f"Streaming write to {out_path} (no memory accumulation)...")
+    print(f"Estimated size: 30-50 GB compressed")
+    print()
+
+    with gz.open(out_path, "wt", encoding="utf-8") as fout:
+        with tqdm(total=len(smi_files), desc="Reading files") as pbar:
+            for smi_file in smi_files:
+                try:
+                    with gzip.open(smi_file, "rt", encoding="utf-8") as f:
+                        for line in f:
+                            parts = line.strip().split("\t")
+                            if len(parts) >= 1:
+                                smiles = parts[0].strip()
+                                if _is_valid_smiles_fast(smiles):
+                                    fout.write(smiles + "\n")
+                                    total_count += 1
+                except Exception as e:
+                    print(f"\nWarning: Error reading {smi_file}: {e}")
                 pbar.update(1)
-                pbar.set_postfix({"total": f"{len(all_smiles):,}"})
+                if total_count % 10_000_000 == 0 and total_count > 0:
+                    pbar.set_postfix({"written": f"{total_count:,}"})
 
     elapsed = time.time() - t0
-    print(f"\nRead {len(all_smiles):,} valid molecules in {elapsed/3600:.1f} hours")
-    print(f"Writing to {args.output}...")
-
-    # Write as compressed parquet (requires pyarrow) or fallback to gzip pickle
-    try:
-        import pyarrow as pa
-        import pyarrow.parquet as pq
-
-        arr = pa.array(all_smiles)
-        table = pa.table({"smiles": arr})
-        pq.write_table(table, args.output, compression="zstd")
-        size_mb = Path(args.output).stat().st_size / 1e6
-        print(f"Saved {len(all_smiles):,} molecules ({size_mb:.0f} MB) to {args.output}")
-
-    except ImportError:
-        import pickle
-        import gzip as gz
-
-        # Fallback: gzip compressed pickle
-        out_path = Path(args.output).with_suffix(".pkl.gz")
-        with gz.open(out_path, "wb") as f:
-            pickle.dump(all_smiles, f)
-        size_mb = out_path.stat().st_size / 1e6
-        print(f"Saved {len(all_smiles):,} molecules ({size_mb:.0f} MB) to {out_path}")
-        print("Note: .pkl.gz is slower to load than parquet. Run:")
-        print(f"  pip install pyarrow")
-
-    print(f"Total time: {elapsed/3600:.1f} hours")
+    size_gb = out_path.stat().st_size / 1e9
+    print(f"\nWrote {total_count:,} valid molecules in {elapsed/3600:.1f} hours")
+    print(f"File size: {size_gb:.1f} GB ({args.output})")
+    print(f"\nTotal time: {elapsed/3600:.1f} hours")
     print("\nTo use this cache, set:")
     print(f"  export ZINC22_CACHE={args.output}")
+    print("Or just run pretraining — it auto-detects the cache file.")
 
 
 if __name__ == "__main__":
