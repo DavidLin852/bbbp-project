@@ -115,7 +115,7 @@ class CachedGraphDataset(torch.utils.data.Dataset):
         self,
         smiles_list: list,
         cache_file: Optional[Path] = None,
-        num_workers: int = 8,
+        num_workers: int = 1,  # Set to 1 to avoid shared memory exhaustion on limited systems
         pin_memory: bool = True,
     ):
         self.data = []
@@ -174,7 +174,7 @@ def pretrain_gnn_model(
     hidden_dim: int = 128,
     num_layers: int = 3,
     heads: int = 4,
-    num_workers: int = 4,
+    num_workers: int = 1,  # Keep at 1 to avoid shared memory exhaustion
     save_dir: str | Path = "artifacts/models/pretrain",
     device: str = "auto",
     gradient_accumulation: int = 1,
@@ -193,7 +193,7 @@ def pretrain_gnn_model(
         hidden_dim: Hidden dimension
         num_layers: Number of GNN layers
         heads: Number of attention heads (for GAT)
-        num_workers: DataLoader workers
+        num_workers: Set to 1 to avoid shared memory exhaustion on cluster nodes
         save_dir: Directory to save checkpoints
         device: Device to use
         gradient_accumulation: Gradient accumulation steps

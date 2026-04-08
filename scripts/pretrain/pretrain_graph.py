@@ -52,8 +52,8 @@ def parse_args():
     parser.add_argument(
         "--num_workers",
         type=int,
-        default=4,
-        help="DataLoader workers for parallel graph construction",
+        default=1,
+        help="DataLoader workers (set to 1 to avoid shared memory exhaustion)",
     )
 
     # Model
