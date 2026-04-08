@@ -55,7 +55,7 @@ class GraphPretrainer(nn.Module):
         num_layers: int = 3,
         dropout: float = 0.1,
         pretraining_task: Literal["property_prediction", "masking"] = "property_prediction",
-        num_properties: int = 4,
+        num_properties: int = 11,
     ):
         super().__init__()
 
@@ -134,33 +134,60 @@ class GraphPretrainer(nn.Module):
 
 def compute_zinc_properties(smiles: str) -> Optional[torch.Tensor]:
     """
-    Compute molecular properties for pretraining targets.
+    Compute 11 molecular properties for multi-task pretraining.
 
     Returns:
-        Tensor of shape (4,) with [logP, TPSA, MW, num_rotatable_bonds]
+        Tensor of shape (11,) with:
+        [logP, TPSA, MW_norm, NumRotatable, NumHBD, NumHBA,
+         NumRings, FractionCSP3, NumHeteroatoms, LabuteASA, MolMR]
     """
     try:
         from rdkit import Chem
-        from rdkit.Chem import Crippen, rdMolDescriptors, Descriptors
+        from rdkit.Chem import Crippen, rdMolDescriptors, Descriptors, Lipinski
 
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             return None
 
+        num_atoms = mol.GetNumAtoms()
+        if num_atoms == 0:
+            return None
+
         logp = Crippen.MolLogP(mol)
         tpsa = rdMolDescriptors.CalcTPSA(mol)
-        mw = Descriptors.ExactMolWt(mol)
+        mw_norm = Descriptors.ExactMolWt(mol) / 1000  # normalize to ~0.1-1 range
         num_rotatable = rdMolDescriptors.CalcNumRotatableBonds(mol)
+        num_hbd = Lipinski.NumHDonors(mol)
+        num_hba = Lipinski.NumHAcceptors(mol)
+        num_rings = rdMolDescriptors.CalcNumRings(mol)
+        # FractionCSP3: carbons that are sp3 / total carbons
+        num_csp3 = sum(1 for a in mol.GetAtoms() if a.GetHybridization() == Chem.rdchem.HybridizationType.SP3 and a.GetAtomicNum() == 6)
+        num_carbons = sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 6)
+        fraction_csp3 = num_csp3 / max(num_carbons, 1)
+        num_hetero = sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() not in (6, 1))
+        labute_asa = rdMolDescriptors.CalcLabuteASA(mol)
+        mol_mr = Crippen.MolMR(mol)
 
-        return torch.tensor([logp, tpsa, mw, num_rotatable], dtype=torch.float32)
+        return torch.tensor([
+            logp, tpsa, mw_norm, num_rotatable, num_hbd, num_hba,
+            num_rings, fraction_csp3, num_hetero, labute_asa, mol_mr
+        ], dtype=torch.float32)
 
     except:
         return None
 
 
+# Property names for logging/debugging
+PROPERTY_NAMES = [
+    "logP", "TPSA", "MW_norm", "NumRotatable", "NumHBD", "NumHBA",
+    "NumRings", "FractionCSP3", "NumHeteroatoms", "LabuteASA", "MolMR"
+]
+
+
 class PropertyPredictionDataset(torch.utils.data.Dataset):
     """
     Dataset for graph property prediction pretraining.
+    Uses 11 properties per molecule.
     """
 
     def __init__(self, smiles_list: list):
@@ -168,14 +195,13 @@ class PropertyPredictionDataset(torch.utils.data.Dataset):
         self.properties = []
 
         # Precompute properties
-        print("Computing molecular properties...")
+        print("Computing 11 molecular properties...")
         for smiles in tqdm(smiles_list):
             props = compute_zinc_properties(smiles)
             if props is not None:
                 self.properties.append(props)
             else:
-                # Use zero padding for invalid molecules
-                self.properties.append(torch.zeros(4))
+                self.properties.append(torch.zeros(11))
 
     def __len__(self):
         return len(self.smiles_list)

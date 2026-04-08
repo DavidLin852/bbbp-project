@@ -99,7 +99,7 @@ class GCN(nn.Module):
         self.convs.append(GCNConv(hidden_dim, hidden_dim))
         self.bns.append(BatchNorm(hidden_dim))
 
-    def forward(self, batch):
+    def forward(self, batch, return_node_emb: bool = False):
         x, edge_index, batch_idx = batch.x, batch.edge_index, batch.batch
 
         for conv, bn in zip(self.convs, self.bns):
@@ -108,6 +108,8 @@ class GCN(nn.Module):
             x = F.elu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
 
+        if return_node_emb:
+            return x  # (num_nodes, hidden_dim)
         g = global_mean_pool(x, batch_idx)
         return g
 
@@ -165,7 +167,7 @@ class GIN(nn.Module):
         self.convs.append(GINConv(nn=mlp_out, train_eps=False))
         self.bns.append(BatchNorm(hidden_dim))
 
-    def forward(self, batch):
+    def forward(self, batch, return_node_emb: bool = False):
         x, edge_index, batch_idx = batch.x, batch.edge_index, batch.batch
 
         for conv, bn in zip(self.convs, self.bns):
@@ -174,6 +176,8 @@ class GIN(nn.Module):
             x = F.elu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
 
+        if return_node_emb:
+            return x  # (num_nodes, hidden_dim)
         g = global_mean_pool(x, batch_idx)
         return g
 
@@ -216,7 +220,7 @@ class GAT(nn.Module):
         self.convs.append(GATConv(hidden_dim * heads, hidden_dim, heads=1, concat=False))
         self.bns.append(BatchNorm(hidden_dim))
 
-    def forward(self, batch):
+    def forward(self, batch, return_node_emb: bool = False):
         x, edge_index, batch_idx = batch.x, batch.edge_index, batch.batch
         # Note: edge_attr is available in batch.edge_attr but not used by GATConv
         # This is a design choice for consistency across GCN/GIN/GAT
@@ -227,6 +231,8 @@ class GAT(nn.Module):
             x = F.elu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
 
+        if return_node_emb:
+            return x  # (num_nodes, hidden_dim)
         g = global_mean_pool(x, batch_idx)
         return g
 

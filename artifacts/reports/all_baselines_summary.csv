@@ -1,0 +1,57 @@
+rank,category,task,model,feature,n_seeds,test_auc,test_auc_std,test_f1,test_f1_std,test_r2,test_r2_std,test_rmse,test_rmse_std
+1,classical,classification,lgbm,maccs,5,0.9535,0.0388,0.9403,0.0258,,,,
+2,classical,classification,rf,maccs,5,0.9504,0.0462,0.9417,0.0206,,,,
+3,classical,classification,rf,morgan,6,0.9504,0.033,0.9407,0.0185,,,,
+4,classical,classification,xgb,maccs,5,0.9496,0.0448,0.9381,0.0233,,,,
+5,classical,classification,xgb,fp2,5,0.9459,0.0352,0.9443,0.0148,,,,
+6,classical,classification,lgbm,fp2,5,0.9439,0.0393,0.9409,0.0168,,,,
+7,classical,classification,rf,fp2,5,0.9436,0.0392,0.9415,0.0171,,,,
+8,classical,classification,svm,fp2,5,0.9402,0.027,0.9353,0.0185,,,,
+9,classical,classification,svm,maccs,5,0.9387,0.0419,0.9349,0.0253,,,,
+10,classical,classification,rf,descriptors_basic,5,0.9377,0.0597,0.9459,0.0219,,,,
+11,classical,classification,lgbm,morgan,6,0.9359,0.0456,0.9392,0.0221,,,,
+12,gnn,classification,gat,"graph (22d nodes, 7d edges)",5,0.9356,0.0314,0.9231,0.0185,,,,
+13,classical,classification,xgb,morgan,6,0.9343,0.0475,0.9346,0.0204,,,,
+14,classical,classification,xgb,descriptors_basic,5,0.9336,0.059,0.9422,0.0231,,,,
+15,classical,classification,lgbm,descriptors_basic,5,0.9333,0.0656,0.9421,0.0215,,,,
+16,gnn,classification,gin,"graph (22d nodes, 7d edges)",5,0.9271,0.0349,0.9269,0.0156,,,,
+17,classical,classification,svm,morgan,6,0.9266,0.0424,0.9381,0.017,,,,
+18,gnn,classification,gcn,"graph (22d nodes, 7d edges)",5,0.9255,0.0384,0.9207,0.0197,,,,
+19,classical,classification,lr,maccs,5,0.9216,0.0469,0.9243,0.0293,,,,
+20,classical,classification,knn,maccs,5,0.9207,0.0612,0.9353,0.0193,,,,
+21,classical,classification,lr,morgan,6,0.9137,0.0747,0.9314,0.0243,,,,
+22,classical,classification,lr,fp2,5,0.9106,0.0467,0.9324,0.0174,,,,
+23,classical,classification,knn,descriptors_basic,5,0.9052,0.0675,0.9267,0.0192,,,,
+24,classical,classification,knn,fp2,5,0.9019,0.0688,0.9267,0.0222,,,,
+25,classical,classification,lr,descriptors_basic,5,0.8912,0.0521,0.9217,0.0153,,,,
+26,classical,classification,knn,morgan,6,0.8874,0.0639,0.9316,0.019,,,,
+27,transformer,classification,SMILES Transformer,SMILES tokenized (128 len),6,0.8865,0.0696,0.9055,0.0213,,,,
+28,classical,classification,svm,descriptors_basic,5,0.8797,0.1027,0.9298,0.0185,,,,
+1,classical,regression,rf_reg,descriptors_basic,5,,,,,0.4488,0.0918,0.5798,0.0457
+2,classical,regression,rf_reg,maccs,5,,,,,0.4397,0.0922,0.5842,0.0362
+3,classical,regression,xgb_reg,descriptors_basic,5,,,,,0.4347,0.1163,0.586,0.0513
+4,classical,regression,svm_reg,maccs,5,,,,,0.4212,0.0574,0.5955,0.0268
+5,classical,regression,ridge,descriptors_basic,5,,,,,0.4139,0.012,0.6007,0.0356
+6,classical,regression,svm_reg,morgan,5,,,,,0.4131,0.0794,0.599,0.0362
+7,classical,regression,svm_reg,descriptors_basic,5,,,,,0.4065,0.0391,0.6045,0.045
+8,classical,regression,xgb_reg,morgan,5,,,,,0.4015,0.111,0.604,0.0505
+9,classical,regression,lgbm_reg,maccs,5,,,,,0.3968,0.1301,0.6039,0.0367
+10,classical,regression,xgb_reg,maccs,5,,,,,0.3933,0.1366,0.6052,0.0378
+11,classical,regression,rf_reg,morgan,5,,,,,0.389,0.0572,0.6124,0.0393
+12,classical,regression,lgbm_reg,descriptors_basic,5,,,,,0.3689,0.1151,0.6197,0.047
+13,gnn,regression,gat,"graph (22d nodes, 7d edges)",5,,,,,0.3321,0.0406,0.6408,0.0357
+14,classical,regression,ridge,maccs,5,,,,,0.3289,0.0782,0.6437,0.0744
+15,classical,regression,knn_reg,maccs,5,,,,,0.3209,0.067,0.6448,0.0197
+16,classical,regression,rf_reg,fp2,5,,,,,0.2907,0.1069,0.6583,0.0425
+17,classical,regression,knn_reg,descriptors_basic,5,,,,,0.2877,0.048,0.6618,0.0403
+18,classical,regression,lgbm_reg,morgan,5,,,,,0.2852,0.1766,0.6567,0.0685
+19,gnn,regression,gcn,"graph (22d nodes, 7d edges)",5,,,,,0.2819,0.0723,0.6646,0.0549
+20,classical,regression,svm_reg,fp2,5,,,,,0.2809,0.0932,0.6627,0.0265
+21,classical,regression,lgbm_reg,fp2,5,,,,,0.2501,0.1668,0.6747,0.0596
+22,transformer,regression,SMILES Transformer,SMILES tokenized (128 len),6,,,,,0.2162,0.1985,0.6877,0.0961
+23,classical,regression,xgb_reg,fp2,5,,,,,0.1954,0.1947,0.6976,0.0657
+24,classical,regression,ridge,morgan,5,,,,,0.1952,0.1527,0.6989,0.0396
+25,gnn,regression,gin,"graph (22d nodes, 7d edges)",5,,,,,0.1796,0.1407,0.7062,0.0473
+26,classical,regression,knn_reg,morgan,5,,,,,0.1235,0.1299,0.7309,0.0247
+27,classical,regression,knn_reg,fp2,5,,,,,0.0462,0.1338,0.7624,0.0066
+28,classical,regression,ridge,fp2,5,,,,,-0.3216,0.3847,0.8878,0.0925

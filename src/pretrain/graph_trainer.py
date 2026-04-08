@@ -29,10 +29,9 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from gnn.models import GIN, GAT, GCN
 from pretrain.data import ZINC22Dataset
-from pretrain.graph import GraphPretrainer
+from pretrain.graph import GraphPretrainer, PROPERTY_NAMES
 from features.graph import smiles_to_pyg_graph
 from rdkit import Chem
-from rdkit.Chem import Crippen, rdMolDescriptors, Descriptors
 
 
 # ==================== Dataset ====================
@@ -78,16 +77,12 @@ class CachedGraphDataset(torch.utils.data.Dataset):
                 if mol is None:
                     continue
 
-                graph = smiles_to_pyg_graph(smiles)
-                logp = Crippen.MolLogP(mol)
-                tpsa = rdMolDescriptors.CalcTPSA(mol)
-                mw = Descriptors.ExactMolWt(mol)
-                rotatable = rdMolDescriptors.CalcNumRotatableBonds(mol)
-                target = torch.tensor(
-                    [logp, tpsa, mw / 1000, rotatable],  # Normalize MW
-                    dtype=torch.float32
-                )
+                from pretrain.graph import compute_zinc_properties
+                target = compute_zinc_properties(smiles)
+                if target is None:
+                    continue
 
+                graph = smiles_to_pyg_graph(smiles)
                 self.data.append(graph)
                 self.targets.append(target)
             except Exception:
@@ -201,7 +196,15 @@ def pretrain_gnn_model(
         drop_last=True,
     )
 
-    # Step 4: Create model
+    # Step 4: Compute property normalization stats
+    all_targets = torch.stack(graph_dataset.targets)
+    prop_mean = all_targets.mean(dim=0)
+    prop_std = all_targets.std(dim=0) + 1e-8
+    print(f"\nProperty normalization (mean / std):")
+    for i, name in enumerate(PROPERTY_NAMES):
+        print(f"  {name:20s}: {prop_mean[i]:8.3f} / {prop_std[i]:8.3f}")
+
+    # Step 5: Create model
     pretrainer = GraphPretrainer(
         model_type=model_type,
         node_dim=22,
@@ -209,7 +212,7 @@ def pretrain_gnn_model(
         num_layers=num_layers,
         dropout=0.1,
         pretraining_task="property_prediction",
-        num_properties=4,
+        num_properties=len(PROPERTY_NAMES),
     )
 
     # Multi-GPU: wrap the whole model
@@ -219,7 +222,7 @@ def pretrain_gnn_model(
 
     pretrainer = pretrainer.to(device)
 
-    # Step 5: Optimizer and scheduler
+    # Step 6: Optimizer and scheduler
     optimizer = torch.optim.AdamW(pretrainer.parameters(), lr=lr, weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=lr / 10)
     criterion = nn.MSELoss()
@@ -229,6 +232,10 @@ def pretrain_gnn_model(
     scaler = torch.cuda.amp.GradScaler() if use_amp else None
     if use_amp:
         print("Using mixed precision training (AMP)")
+
+    # Normalize targets in the batch
+    prop_mean = prop_mean.to(device)
+    prop_std = prop_std.to(device)
 
     # Step 6: Training loop
     history = {"train_loss": []}
@@ -251,13 +258,13 @@ def pretrain_gnn_model(
             if use_amp:
                 with torch.cuda.amp.autocast():
                     preds = pretrainer(batch)
-                    targets = batch.y_property
+                    targets = (batch.y_property - prop_mean) / prop_std
                     loss = criterion(preds, targets)
                     loss = loss / gradient_accumulation
                 scaler.scale(loss).backward()
             else:
                 preds = pretrainer(batch)
-                targets = batch.y_property
+                targets = (batch.y_property - prop_mean) / prop_std
                 loss = criterion(preds, targets)
                 loss = loss / gradient_accumulation
                 loss.backward()
@@ -293,10 +300,14 @@ def pretrain_gnn_model(
             "optimizer_state_dict": optimizer.state_dict(),
             "scheduler_state_dict": scheduler.state_dict(),
             "history": history,
+            "prop_mean": prop_mean.cpu(),
+            "prop_std": prop_std.cpu(),
+            "property_names": PROPERTY_NAMES,
             "config": {
                 "model_type": model_type,
                 "hidden_dim": hidden_dim,
                 "num_layers": num_layers,
+                "num_properties": len(PROPERTY_NAMES),
             },
         }
         torch.save(ckpt, save_dir / f"{model_type}_pretrain_epoch_{epoch}.pt")
