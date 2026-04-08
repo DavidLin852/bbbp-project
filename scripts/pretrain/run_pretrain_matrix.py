@@ -270,6 +270,7 @@ def build_command(exp: dict) -> list[str]:
             "--n_layers", str(exp.get("n_layers", 4)),
             "--n_heads", str(exp.get("n_heads", 8)),
             "--batch_size", "512",
+            "--num_workers", "8",
         ]
     else:
         # GNN strategies use model, hidden_dim, batch_size

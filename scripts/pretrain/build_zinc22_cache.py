@@ -137,7 +137,7 @@ def phase1_extract(smi_files: list[Path], out_dir: Path, num_workers: int) -> in
     return total_count
 
 
-def phase2_consolidate(input_dir: Path, output_path: Path, num_workers: int) -> int:
+def phase2_consolidate(input_dir: Path, output_path: Path, num_workers: int, skip_if_disk_quota: bool = True) -> int:
     """Phase 2: load all extracted files and write a single pickle.gz."""
     txt_files = sorted(input_dir.rglob("*.txt"))
     print(f"Phase 2: loading {len(txt_files):,} extracted files...")

@@ -118,6 +118,12 @@ def parse_args():
         default="auto",
         help="Device to use (auto/cpu/cuda)",
     )
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=0,
+        help="DataLoader workers for parallel tokenization (default: auto)",
+    )
 
     return parser.parse_args()
 
@@ -164,6 +170,7 @@ def main():
         save_dir=args.save_dir,
         device=args.device,
         tokenizer_path=args.tokenizer_path,
+        num_workers=args.num_workers,
     )
 
     print("\n" + "=" * 60)

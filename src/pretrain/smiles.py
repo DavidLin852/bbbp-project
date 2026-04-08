@@ -184,6 +184,7 @@ def pretrain_smiles_model(
     save_dir: str | Path = "artifacts/models/pretrain",
     device: str = "auto",
     tokenizer_path: Optional[str | Path] = None,
+    num_workers: int = 0,
 ) -> dict:
     """
     Pretrain SMILES Transformer on ZINC22 with MLM.
@@ -244,7 +245,17 @@ def pretrain_smiles_model(
         num_samples=num_samples,
     )
 
-    # Create dataloader with custom collate
+    # Create masking (reused across all batches, not recreated each time)
+    masking = SMILESMasking(
+        mask_token_id=tokenizer.mask_token_id if hasattr(tokenizer, 'mask_token_id') else 1,
+        mask_ratio=mask_ratio,
+    )
+
+    # Determine optimal num_workers if not specified
+    if num_workers == 0:
+        import multiprocessing as mp
+        num_workers = min(8, mp.cpu_count())
+
     def collate_fn(batch):
         """Custom collate function for SMILES MLM."""
         from transformer.trainer import collate_smiles_batch
@@ -254,12 +265,6 @@ def pretrain_smiles_model(
             labels=[0] * len(batch),  # Dummy labels
             tokenizer=tokenizer,
             max_length=128,
-        )
-
-        # Apply masking
-        masking = SMILESMasking(
-            mask_token_id=tokenizer.mask_token_id if hasattr(tokenizer, 'mask_token_id') else 1,
-            mask_ratio=mask_ratio,
         )
 
         masked_ids, mask = masking(batched["input_ids"])
@@ -275,8 +280,10 @@ def pretrain_smiles_model(
         dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=0,
+        num_workers=num_workers,
+        prefetch_factor=4 if num_workers > 0 else None,
         collate_fn=collate_fn,
+        pin_memory=True,
     )
 
     # Create model
