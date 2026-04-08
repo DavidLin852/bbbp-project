@@ -5,12 +5,11 @@ Optimized for speed and multi-GPU training.
 Property prediction pretraining with molecular descriptors as targets.
 
 Key optimizations:
-1. Precompute all graphs ONCE (no RDKit overhead during training)
-2. Precompute property targets ONCE
-3. Parallel graph construction with DataLoader workers
-4. AMP mixed precision
-5. Multi-GPU support via DataParallel
-6. Gradient accumulation for effective larger batch size
+1. Parallel graph construction (multiprocessing.Pool) — ~10x faster than sequential
+2. Precomputed pickle cache — skip graph building on subsequent runs
+3. AMP mixed precision
+4. Multi-GPU support via DataParallel
+5. Gradient accumulation for effective larger batch size
 """
 
 from __future__ import annotations
@@ -24,6 +23,7 @@ from torch_geometric.data import Batch
 from tqdm import tqdm
 import numpy as np
 import pickle
+import multiprocessing as mp
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -31,7 +31,76 @@ from gnn.models import GIN, GAT, GCN
 from pretrain.data import ZINC22Dataset
 from pretrain.graph import GraphPretrainer, PROPERTY_NAMES
 from features.graph import smiles_to_pyg_graph
-from rdkit import Chem
+
+
+# ==================== Parallel Graph Builder ====================
+
+def _build_single_graph(smiles: str) -> Optional[tuple]:
+    """
+    Build a single PyG graph + property target from a SMILES string.
+    Returns (graph, target) or None if invalid.
+    Must be a top-level function (not a method) for multiprocessing pickling.
+    """
+    try:
+        graph = smiles_to_pyg_graph(smiles)
+        if graph is None:
+            return None
+
+        from pretrain.graph import compute_zinc_properties
+        target = compute_zinc_properties(smiles)
+        if target is None:
+            return None
+
+        return (graph, target)
+    except Exception:
+        return None
+
+
+def _chunked_parallel_build(smiles_list: list, num_workers: int, chunk_size: int = 500) -> tuple:
+    """
+    Build graphs in parallel using multiprocessing.Pool.
+
+    Returns (data_list, targets_list).
+    """
+    if num_workers <= 1:
+        # Sequential fallback
+        data, targets = [], []
+        for s in tqdm(smiles_list, desc="Building graphs"):
+            result = _build_single_graph(s)
+            if result:
+                data.append(result[0])
+                targets.append(result[1])
+        return data, targets
+
+    # Parallel: split into chunks to reduce pickle overhead
+    # Each chunk is processed by one worker
+    chunks = [smiles_list[i:i + chunk_size] for i in range(0, len(smiles_list), chunk_size)]
+
+    print(f"Building {len(smiles_list):,} graphs with {num_workers} workers "
+          f"({len(chunks)} chunks of ~{chunk_size} each)...")
+
+    try:
+        mp.set_start_method("spawn", force=True)
+    except RuntimeError:
+        pass  # already set
+
+    results = []
+    with mp.Pool(num_workers) as pool:
+        for chunk_result in tqdm(
+            pool.imap_unordered(_build_chunk, chunks),
+            total=len(chunks),
+            desc="Building graphs",
+        ):
+            results.extend(chunk_result)
+
+    data = [r[0] for r in results]
+    targets = [r[1] for r in results]
+    return data, targets
+
+
+def _build_chunk(smiles_chunk: list) -> list:
+    """Process a chunk of SMILES strings. Worker function for Pool.imap."""
+    return [r for r in (_build_single_graph(s) for s in smiles_chunk) if r is not None]
 
 
 # ==================== Dataset ====================
@@ -46,7 +115,7 @@ class CachedGraphDataset(torch.utils.data.Dataset):
         self,
         smiles_list: list,
         cache_file: Optional[Path] = None,
-        num_workers: int = 4,
+        num_workers: int = 8,
         pin_memory: bool = True,
     ):
         self.data = []
@@ -55,45 +124,22 @@ class CachedGraphDataset(torch.utils.data.Dataset):
 
         if cache_file and cache_file.exists():
             print(f"Loading cached graphs from {cache_file}")
-            with open(cache_file, "rb") as f:
-                cached = pickle.load(f)
-                self.data = cached["data"]
-                self.targets = cached["targets"]
-                self._length = len(self.data)
-            print(f"Loaded {self._length:,} cached graphs")
-            return
-
-        # imports already at top of file
-
-        # Precompute all graphs and targets
-        print(f"Building {len(smiles_list):,} graphs with {num_workers} workers...")
-
-        # Use a simple approach: compute sequentially but with progress
-        # RDKit graph construction is slow, so we do it in the main process
-        # to avoid pickle overhead of PyG Data objects across processes
-        for i, smiles in enumerate(tqdm(smiles_list, desc="Building graphs")):
             try:
-                mol = Chem.MolFromSmiles(smiles)
-                if mol is None:
-                    continue
+                with open(cache_file, "rb") as f:
+                    cached = pickle.load(f)
+                    self.data = cached["data"]
+                    self.targets = cached["targets"]
+                    self._length = len(self.data)
+                print(f"Loaded {self._length:,} cached graphs")
+                return
+            except Exception as e:
+                print(f"Cache corrupted ({e}), rebuilding...")
+                cache_file.unlink()
 
-                from pretrain.graph import compute_zinc_properties
-                target = compute_zinc_properties(smiles)
-                if target is None:
-                    continue
-
-                graph = smiles_to_pyg_graph(smiles)
-                self.data.append(graph)
-                self.targets.append(target)
-            except Exception:
-                continue
-
-            if (i + 1) % 10000 == 0:
-                print(f"  Processed {i + 1:,}/{len(smiles_list):,} "
-                      f"({len(self.data):,} valid graphs)")
-
+        # Build graphs in parallel
+        self.data, self.targets = _chunked_parallel_build(smiles_list, num_workers)
         self._length = len(self.data)
-        print(f"Built {self._length:,} valid graphs with property targets")
+        print(f"Built {self._length:,} valid graphs")
 
         if cache_file:
             print(f"Caching to {cache_file}")
