@@ -210,13 +210,21 @@ def _read_file_fast(smi_file: Path, max_lines: int) -> List[str]:
 
 
 def _load_full_cache(cache_path: Path) -> List[str]:
-    """Load full ZINC22 cache. Supports .txt.gz (plain text) or pickle."""
+    """Load full ZINC22 cache. Supports .pkl.gz (pickle+gzip), .txt.gz (plain text), or .pkl."""
     if cache_path.suffix == ".gz":
-        # Plain text.gz: one SMILES per line
+        # Try pickle first (supports .pkl.gz and .txt.gz)
+        with gzip.open(cache_path, "rb") as f:
+            try:
+                data = pickle.load(f)
+                if isinstance(data, list):
+                    return data
+            except Exception:
+                pass
+        # Fall back to plain text.gz: one SMILES per line
         with gzip.open(cache_path, "rt", encoding="utf-8") as f:
             return [line.strip() for line in f]
     else:
-        # Pickle
+        # Plain pickle
         with open(cache_path, "rb") as f:
             return pickle.load(f)
 
