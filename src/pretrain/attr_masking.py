@@ -116,7 +116,7 @@ class AttrMaskingDataset(torch.utils.data.Dataset):
             print(f"Loading cached graphs from {cache_file}")
             with open(cache_file, "rb") as f:
                 cached = pickle.load(f)
-                self.data = cached["data"]
+                self.data = [g for g in cached["data"] if g is not None]
                 self._length = len(self.data)
             print(f"Loaded {self._length:,} cached graphs")
             return
@@ -125,7 +125,8 @@ class AttrMaskingDataset(torch.utils.data.Dataset):
         for i, smiles in enumerate(tqdm(smiles_list, desc="Building graphs")):
             try:
                 graph = smiles_to_pyg_graph(smiles)
-                self.data.append(graph)
+                if graph is not None:
+                    self.data.append(graph)
             except Exception:
                 continue
 

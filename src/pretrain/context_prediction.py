@@ -110,8 +110,15 @@ class ContextPredictionDataset(torch.utils.data.Dataset):
             print(f"Loading cached graphs from {cache_file}")
             with open(cache_file, "rb") as f:
                 cached = pickle.load(f)
-                self.data = cached["data"]
-                self.pairs = cached["pairs"]
+                # Filter out any None graphs and corresponding pairs
+                valid = [(g, p) for g, p in zip(cached["data"], cached["pairs"]) if g is not None]
+                if valid:
+                    self.data, self.pairs = zip(*valid)
+                    self.data = list(self.data)
+                    self.pairs = list(self.pairs)
+                else:
+                    self.data = []
+                    self.pairs = []
                 self._length = len(self.data)
             print(f"Loaded {self._length:,} cached graphs")
             return
@@ -120,6 +127,8 @@ class ContextPredictionDataset(torch.utils.data.Dataset):
         for i, smiles in enumerate(tqdm(smiles_list, desc="Building graphs")):
             try:
                 graph = smiles_to_pyg_graph(smiles)
+                if graph is None:
+                    continue
                 self.data.append(graph)
 
                 # Generate positive pairs from this graph
