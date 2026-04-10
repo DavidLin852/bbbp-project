@@ -362,5 +362,10 @@ def pretrain_gnn_model(
     final_state = pretrainer.module.state_dict() if isinstance(pretrainer, DataParallel) else pretrainer.state_dict()
     torch.save(pretrainer.backbone.state_dict(), save_dir / f"{model_type}_pretrained_backbone.pt")
 
+    # Save training history
+    import json as _json
+    with open(save_dir / "training_history.json", "w") as f:
+        _json.dump({k: [float(v) for v in vs] for k, vs in history.items()}, f, indent=2)
+
     print(f"\nPretraining complete! Saved to {save_dir}")
     return history

@@ -335,5 +335,10 @@ def pretrain_denoising(
     torch.save(backbone.module.state_dict() if isinstance(backbone, DataParallel) else backbone.state_dict(),
                save_dir / f"{model_type}_pretrained_backbone.pt")
 
+    # Save training history
+    import json as _json
+    with open(save_dir / "training_history.json", "w") as f:
+        _json.dump({k: [float(v) for v in vs] for k, vs in history.items()}, f, indent=2)
+
     print(f"\nPretraining complete! Saved to {save_dir}")
     return history

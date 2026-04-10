@@ -390,6 +390,11 @@ def pretrain_smiles_model(
     # Save final encoder (for fine-tuning)
     torch.save(model.encoder.state_dict(), save_dir / "transformer_pretrained_encoder.pt")
 
+    # Save training history
+    import json as _json
+    with open(save_dir / "training_history.json", "w") as f:
+        _json.dump({k: [float(v) for v in vs] for k, vs in history.items()}, f, indent=2)
+
     print(f"\nPretraining complete!")
     print(f"Saved pretrained encoder to: {save_dir / 'transformer_pretrained_encoder.pt'}")
 
