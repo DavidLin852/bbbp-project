@@ -51,6 +51,31 @@ python scripts/gnn/run_gnn_benchmark.py --tasks classification
 
 See `docs/GNN_STAGE.md` for full documentation.
 
+### Fine-tuning (Stage 4)
+
+```bash
+# List all fine-tuning experiments
+python scripts/finetune/run_finetune_matrix.py --list
+
+# Phase 1 (Groups A+B+D, 68 experiments):
+#   Group A: GNN fine-tuning (pretrained GNN → end-to-end)
+#   Group B: Embedding → LightGBM (pretrained GNN/Transformer → frozen emb → LGBM)
+#   Group D: Transformer fine-tuning (pretrained encoder → end-to-end)
+python scripts/finetune/run_finetune_matrix.py --phase 1
+
+# Extract embeddings first (required for Groups B and C)
+python scripts/finetune/run_finetune_matrix.py --extract_only
+
+# Phase 2 (Group C, 136 experiments):
+#   Group C: Embedding + Feature → LightGBM (embedding + fingerprints → LGBM)
+python scripts/finetune/run_finetune_matrix.py --phase 2
+
+# Aggregate results
+python scripts/finetune/run_finetune_matrix.py --aggregate_only
+```
+
+See `docs/FINETUNE_PLAN.md` for full experiment design.
+
 ---
 
 ## Protected Areas
@@ -84,7 +109,8 @@ These modules are preserved for future research but **not part of the current ma
 | VAE | `src/vae/` | Architecture ready | Molecule generation |
 | GAN | `src/gan/` | Architecture ready | Molecule generation |
 | Transformer | `src/transformer/` | Benchmarked | SMILES Transformer baseline |
-| Pretrain | `src/pretrain/` | In progress | ZINC22 pre-training |
+| Pretrain | `src/pretrain/` | Pretraining complete (14/17) | ZINC22 pre-training |
+| Finetune | `src/finetune/`, `scripts/finetune/` | Ready to run | Fine-tune pretrained models on BBB task |
 | Path Prediction | `src/path_prediction/` | Experimental | Transport mechanism |
 | Explainability | `src/explain/` | Future | Model interpretation |
 
@@ -293,6 +319,9 @@ Each feature family is an **independent** baseline input. Do NOT concatenate fea
 | LGBM type error | Convert features to float32 |
 | Invalid SMILES | Use auto-fix mapping in preprocessing |
 | Missing dependencies | Check `requirements.txt` or `configs/environment.yml` |
+| PyG graph building OOM on cluster | Set `num_workers=1` in `CachedGraphDataset` to avoid shared memory exhaustion |
+| Denoising collate NoneType error | Filter `None` graphs during dataset build and cache load (fixed in `denoising.py`, `edge_masking.py`, `contrastive.py`, `attr_masking.py`, `context_prediction.py`) |
+| Pretrain history not saved | `training_history.json` now saved after training completes |
 
 ---
 
@@ -417,14 +446,92 @@ All results: B3DB Groups A+B, scaffold split.
 
 ---
 
+## Pretraining Results (ZINC22, Stage 3)
+
+Pretraining on ZINC22 molecular graphs with three strategies: Property Prediction, Denoising, Transformer MLM. See `scripts/pretrain/run_pretrain_matrix.py` for the full experiment matrix.
+
+### Pretraining Strategies
+
+| Strategy | Task | Target | Backbone |
+|----------|------|--------|----------|
+| Property Prediction | Predict 11 molecular properties (logP, TPSA, MW, etc.) | Regression | GIN, GAT |
+| Denoising | Reconstruct clean node features from noisy input | Node feature reconstruction | GIN, GAT |
+| Transformer MLM | Masked language modeling on SMILES | Sequence modeling | Transformer |
+
+### Pretraining Experiment Matrix
+
+**14/17 experiments completed.** 3 still pending (D_E10_GIN_5M, D_E20_GIN_256_5M, T_E20_TRANS_512_5M).
+
+#### Property Prediction Results (10 epochs, all converged)
+
+| Experiment | Samples | Model | Initial Loss | Final Loss | Reduction |
+|------------|---------|-------|-------------|------------|-----------|
+| P_E10_GIN_100K | 100K | GIN-128d | 0.314 | 0.156 | -50% |
+| P_E10_GIN_500K | 500K | GIN-128d | 0.224 | 0.111 | -50% |
+| P_E10_GIN_1M | 1M | GIN-128d | 0.197 | 0.098 | -50% |
+| P_E10_GIN_2M | 2M | GIN-128d | 0.211 | 0.102 | -52% |
+| P_E10_GIN_5M | 5M | GIN-128d | 0.176 | 0.086 | -51% |
+| P_E10_GAT_1M | 1M | GAT-128d | 0.221 | 0.127 | -42% |
+| P_E20_GIN_256_5M | 5M | GIN-256d | 0.139 | 0.041 | **-71%** |
+
+#### Denoising Results (10 epochs)
+
+| Experiment | Model | Initial Loss | Final Loss | Reduction |
+|------------|-------|-------------|------------|-----------|
+| D_E10_GIN_100K | GIN-128d | 0.046 | 0.0007 | -98% |
+| D_E10_GIN_1M | GIN-128d | 0.013 | 0.0002 | -99% |
+| D_E10_GAT_1M | GAT-128d | 0.017 | 0.0003 | -98% |
+| D_E10_GIN_5M | GIN-128d | 0.005 | 0.005 | ⏳ Re-running |
+
+#### Transformer MLM Results (10 epochs)
+
+| Experiment | Samples | Layers | Initial Loss | Final Loss | Reduction |
+|------------|---------|--------|-------------|------------|-----------|
+| T_E10_TRANS_100K | 100K | 4L-256d | 2.217 | 0.590 | -73% |
+| T_E10_TRANS_1M | 1M | 4L-256d | 0.884 | 0.242 | -73% |
+| T_E10_TRANS_5M | 5M | 4L-256d | 0.445 | 0.148 | -67% |
+| T_E10_TRANS_1M_L6 | 1M | 6L-256d | 0.838 | 0.207 | -75% |
+| T_E20_TRANS_512_5M | 5M | 8L-512d | - | - | ⏳ Re-running |
+
+### Key Observations
+
+- **Property Prediction** converges steadily across all sample sizes. Larger models (256d, 20ep) achieve significantly better loss (0.041).
+- **Denoising** converges extremely fast (-99%), suggesting the task may be too easy — consider increasing noise std.
+- **Transformer** shows clear benefits from larger datasets and deeper architectures.
+- **3 experiments pending**: D_E10_GIN_5M, D_E20_GIN_256_5M, T_E20_TRANS_512_5M (flagship scale, may need reduced batch size).
+
+### Pending Experiments
+
+Run the remaining 3 after current jobs complete:
+
+```bash
+python scripts/pretrain/run_pretrain_matrix.py --run 11   # D_E10_GIN_5M
+python scripts/pretrain/run_pretrain_matrix.py --run 13   # D_E20_GIN_256_5M
+python scripts/pretrain/run_pretrain_matrix.py --run 17   # T_E20_TRANS_512_5M
+```
+
+### Pretrained Model Artifacts
+
+All pretrained backbones are saved in `artifacts/models/pretrain/exp_matrix/{exp_id}/`:
+
+```
+{exp_id}/
+├── *_pretrained_backbone.pt      # Final backbone weights (for fine-tuning)
+├── *_pretrain_epoch_*.pt         # Per-epoch checkpoints (with history)
+├── training_history.json          # Training loss curves
+└── graph_cache_{N}.pkl            # Cached molecular graphs
+```
+
+---
+
 ## Citation
 
 If you use this code or data, cite the B3DB database.
 
 ---
 
-**Last Updated:** 2026-04-07
-**Project Status:** All baselines complete (Classical, GNN, Transformer)
+**Last Updated:** 2026-04-10
+**Project Status:** Stage 4 (Fine-tuning) — code ready, pending pretrain experiments to complete
 **Best Classification:** MACCS + LightGBM (AUC = 0.9535)
 **Best Regression:** GIN (R² = 0.7062)
-**Next Stage:** Advanced models (pretraining, fine-tuning, explainability)
+**Next Stage:** Run fine-tuning matrix (204 experiments × 5 seeds), aggregate results, compare against baselines
