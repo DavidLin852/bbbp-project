@@ -491,7 +491,7 @@ Pretraining on ZINC22 molecular graphs with three strategies: Property Predictio
 | T_E10_TRANS_1M | 1M | 4L-256d | 0.884 | 0.242 | -73% |
 | T_E10_TRANS_5M | 5M | 4L-256d | 0.445 | 0.148 | -67% |
 | T_E10_TRANS_1M_L6 | 1M | 6L-256d | 0.838 | 0.207 | -75% |
-| T_E20_TRANS_512_5M | 5M | 8L-512d | - | - | ⏳ Re-running |
+| T_E20_TRANS_512_5M | 5M | 8L-512d-16H | - | - | ⏳ Re-running |
 
 ### Key Observations
 

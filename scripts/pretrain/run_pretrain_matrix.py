@@ -237,7 +237,7 @@ PRIORITY_EXPERIMENTS = [
         "model": "transformer",
         "hidden_dim": 512,
         "n_layers": 8,
-        "n_heads": 12,
+        "n_heads": 16,
         "notes": "Transformer flagship: full scale (5M, 20ep, 512d, 8L)",
     },
 ]
