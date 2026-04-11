@@ -200,7 +200,7 @@ PRETRAIN_EXPERIMENTS: list[dict] = [
         "model_type": "transformer",
         "hidden_dim": 512,
         "num_layers": 8,
-        "heads": 12,
+        "heads": 16,
         "samples": 5_000_000,
         "epochs": 20,
     },

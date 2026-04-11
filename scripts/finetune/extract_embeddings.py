@@ -120,6 +120,7 @@ def extract_gnn_embeddings(
     # --- Load pretrained weights ---
     state_dict = torch.load(backbone_path, map_location="cpu", weights_only=False)
     backbone.load_state_dict(state_dict)
+    backbone = backbone.to(device)
     backbone.eval()
 
     # --- Extract embeddings ---
@@ -241,6 +242,7 @@ def extract_transformer_embeddings(
     )
     state_dict = torch.load(encoder_path, map_location="cpu", weights_only=False)
     encoder.load_state_dict(state_dict)
+    encoder = encoder.to(device)
     encoder.eval()
 
     # --- Load B3DB splits ---
