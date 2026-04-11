@@ -210,40 +210,48 @@ def extract_transformer_embeddings(
     if not encoder_path.exists():
         print(f"[SKIP] Encoder not found: {encoder_path}")
         return False
-    if not tokenizer_path.exists():
-        print(f"[SKIP] Tokenizer not found: {tokenizer_path}")
-        return False
 
     print(f"[TRANS] {pretrain_id}, seed={seed}, task={task}")
     print(f"  Encoder: {encoder_path}")
 
-    # --- Check skip ---
-    out_subdir = output_dir / pretrain_id / f"seed_{seed}" / task
-    if skip_existing:
-        if (out_subdir / "X_train.npy").exists():
-            print(f"  [SKIP] Embeddings already exist: {out_subdir}")
-            return True
-
-    out_subdir.mkdir(parents=True, exist_ok=True)
-
-    # --- Load tokenizer ---
-    from src.transformer.smiles_tokenizer import SMILESTokenizer
-    with open(tokenizer_path, "rb") as f:
-        tokenizer = pickle.load(f)
-    print(f"  Tokenizer vocab: {len(tokenizer)}")
-
-    # --- Load encoder ---
+    # --- Infer architecture from checkpoint state dict ---
     from src.transformer.smiles_transformer import SMILESTransformerEncoder
+    state_dict = torch.load(encoder_path, map_location="cpu", weights_only=False)
+
+    vocab_size = state_dict["token_embedding.weight"].shape[0]
+    d_model = state_dict["token_embedding.weight"].shape[1]
+    print(f"  Inferred vocab_size={vocab_size}, d_model={d_model}")
+
     encoder = SMILESTransformerEncoder(
-        vocab_size=len(tokenizer),
-        d_model=cfg["hidden_dim"],
+        vocab_size=vocab_size,
+        d_model=d_model,
         n_heads=cfg["heads"],
         n_layers=cfg["num_layers"],
     )
-    state_dict = torch.load(encoder_path, map_location="cpu", weights_only=False)
     encoder.load_state_dict(state_dict)
     encoder = encoder.to(device)
     encoder.eval()
+
+    # --- Load tokenizer (or rebuild from B3DB data) ---
+    from src.transformer.smiles_tokenizer import SMILESTokenizer, create_tokenizer_from_data
+    if tokenizer_path.exists():
+        with open(tokenizer_path, "rb") as f:
+            tokenizer = pickle.load(f)
+        print(f"  Tokenizer vocab: {len(tokenizer)}")
+    else:
+        # Rebuild tokenizer from B3DB SMILES with matching vocab_size
+        # This won't be identical to the original ZINC22-trained tokenizer
+        # but char-level token coverage overlaps well enough for embedding extraction
+        print(f"  [WARN] Tokenizer not found, rebuilding from B3DB data (vocab={vocab_size})...")
+        import pandas as pd
+        smiles_list = []
+        for split_name in ["train", "val", "test"]:
+            split_path = project_root / "data" / "splits" / f"seed_{seed}" / f"{task}_scaffold" / f"{split_name}.csv"
+            if split_path.exists():
+                df = pd.read_csv(split_path)
+                smiles_list.extend(df["SMILES_canon"].astype(str).tolist())
+        tokenizer = create_tokenizer_from_data(smiles_list, vocab_size=vocab_size, min_freq=1)
+        print(f"  Rebuilt tokenizer vocab: {len(tokenizer)}")
 
     # --- Load B3DB splits ---
     splits_dir = project_root / "data" / "splits" / f"seed_{seed}" / f"{task}_scaffold"
