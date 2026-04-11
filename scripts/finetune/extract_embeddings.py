@@ -220,13 +220,17 @@ def extract_transformer_embeddings(
 
     vocab_size = state_dict["token_embedding.weight"].shape[0]
     d_model = state_dict["token_embedding.weight"].shape[1]
-    print(f"  Inferred vocab_size={vocab_size}, d_model={d_model}")
+    # Infer max_len from the pos_encoding shape in the checkpoint
+    pe_shape = state_dict["pos_encoding.pe"].shape  # (1, max_len, d_model)
+    max_len = pe_shape[1]
+    print(f"  Inferred vocab_size={vocab_size}, d_model={d_model}, max_len={max_len}")
 
     encoder = SMILESTransformerEncoder(
         vocab_size=vocab_size,
         d_model=d_model,
         n_heads=cfg["heads"],
         n_layers=cfg["num_layers"],
+        max_len=max_len,
     )
     encoder.load_state_dict(state_dict)
     encoder = encoder.to(device)
@@ -270,7 +274,7 @@ def extract_transformer_embeddings(
         attention_mask_list = []
         labels_list = []
 
-        max_len = cfg.get("max_len", 128)
+        max_len = max_len  # already inferred from checkpoint above
         pad_id = tokenizer.pad_token_id
 
         for _, row in df.iterrows():
